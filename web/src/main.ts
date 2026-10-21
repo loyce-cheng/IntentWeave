@@ -278,7 +278,9 @@ function render() {
   $("metrics").innerHTML = [
     [
       "运行状态",
-      statusLabel[view.status] ?? view.status,
+      view.status === "running" && !view.running
+        ? "已暂停"
+        : (statusLabel[view.status] ?? view.status),
       `TICK ${view.tick} · ${view.config.policy}`,
     ],
     [

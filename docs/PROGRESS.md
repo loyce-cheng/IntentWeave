@@ -72,7 +72,7 @@ git status --short
 - README、配置示例、供应商矩阵、实现边界、测试报告、CI 及恢复步骤已补齐。
 - 已推送检查点：`5b13f72`（范围）、`514027e`（内核）、`de0aa43`（模型）、`c7e63ed`（API/界面）。
 - 完整源码/文档/记录提交 [`6379753`](https://github.com/loyce-cheng/worldmind/commit/6379753a37e007c4055d81b72e4e00c112d076e4) 已推送，实际核对 `ls-remote` 与本地 HEAD 一致。此后文档更新仍沿用同一远程分支。
-- 交付 PR：[#1](https://github.com/loyce-cheng/worldmind/pull/1)；[远程分支](https://github.com/loyce-cheng/worldmind/tree/codex/rebuild-v0.1)。GitHub 已排队执行 CI，实际结果见 PR Checks。使用远程分支 HEAD 恢复，不依赖本地临时目录。
+- 交付 PR：[#1](https://github.com/loyce-cheng/worldmind/pull/1)；[远程分支](https://github.com/loyce-cheng/worldmind/tree/codex/rebuild-v0.1)。GitHub Linux/Windows 后端已通过；初次浏览器暂停断言发现响应等待问题，已补充确认状态及延迟响应验证，失败证据见 TEST_REPORT。修复后的远程结果见 PR Checks。使用远程分支 HEAD 恢复，不依赖本地临时目录。
 - 未启用付费调用、未部署服务、未合并 main；真实联通、公开托管、Windows 本机和研究结论仍待后续验证。
 
 ### 从源码恢复运行

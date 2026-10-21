@@ -61,9 +61,18 @@ test("hidden bridge change, local recovery and honest comparison", async ({
 });
 
 test("pause, cancel, reset and change goal", async ({ page }) => {
+  // Delay the real pause response: a click does not mean the server has acknowledged it.
+  await page.route("**/api/sessions/*/control", async (route) => {
+    if (route.request().postDataJSON().operation === "pause") {
+      const response = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await route.fulfill({ response });
+    } else await route.continue();
+  });
   await page.locator("#run").click();
   await expect(page.locator("#metrics")).toContainText("执行中");
   await page.locator("#pause").click();
+  await expect(page.locator("#metrics")).toContainText("已暂停");
   const paused = await page.locator("#metrics").innerText();
   await page.waitForTimeout(700);
   expect(await page.locator("#metrics").innerText()).toBe(paused);

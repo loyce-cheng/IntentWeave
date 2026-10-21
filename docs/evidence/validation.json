@@ -24,8 +24,8 @@
     "build": "passed",
     "format_check": "passed",
     "browser": {
-      "startTime": "2026-10-21T01:15:20.476Z",
-      "duration": 73014.792,
+      "startTime": "2026-10-21T01:24:33.651Z",
+      "duration": 33120.294,
       "expected": 6,
       "skipped": 0,
       "unexpected": 0,
@@ -46,11 +46,27 @@
     "tests/test_api.py": "fb759184fde868520fce2a8ec4deeb2078015f692fdc2cdaad1f66dfad71c221",
     "tests/test_engine.py": "fd5b80e232213c5a4a918fad2b302601f5f160be2504ab0d6495946ee51589fb",
     "tests/test_models.py": "a9dcfbaad552cc2f30d5cad3e8ead956ce7815f55d3e93b08d1e4f44f37d3958",
-    "web/e2e/demo.spec.ts": "cee829d9e894fa8b94cb183d934afa65701b942f6b80dcb68ca76c1595577b8f",
+    "web/e2e/demo.spec.ts": "46489974ec59eece0c0f3e7d9cb49358d3a3db1a319664443a9d5c522756f0da",
     "web/package-lock.json": "ca8c4af0b9d99bc45376c400df3b4c54ec2cfada0df8d65c15fb3a9a996f9319",
     "web/playwright.config.ts": "b6ab6e37636d3324624deda433a22135c3cc59c397348d0a70c28521378c48fd",
-    "web/src/main.ts": "7ddb59f14064a589e8ac4f76843e8fa801ffc47dab1aa6ee29485f04b8abf4f8",
+    "web/src/main.ts": "235fb698591da10e4afeea7f35d8c4ddd54d529896415aa953a3536c53b44e41",
     "web/src/style.css": "616b05cbed5d45d06fa2d9b77d3a45ba81e68184a90b97ab4b59a976a7fd1e05",
     "web/vite.config.ts": "09cc91cf63f3bb34a74c019a0be4cb7c9591c51ba9fcb89c6710a6a68c3d29ee"
-  }
+  },
+  "ci_history": [
+    {
+      "run_url": "https://github.com/loyce-cheng/worldmind/actions/runs/39526894775",
+      "commit": "6379753a37e007c4055d81b72e4e00c112d076e4",
+      "backend_linux": "passed",
+      "backend_windows": "passed",
+      "browser": "5 passed / 1 failed: pause snapshot taken before acknowledgement; retained trace in run artifacts"
+    },
+    {
+      "run_url": "https://github.com/loyce-cheng/worldmind/actions/runs/39526945672",
+      "commit": "68cf649aed160b0b69164fd9d91b21fc71d7cfcc",
+      "backend_linux": "passed",
+      "backend_windows": "passed",
+      "browser": "passed; intermittent pause test still corrected in subsequent commit"
+    }
+  ]
 }
