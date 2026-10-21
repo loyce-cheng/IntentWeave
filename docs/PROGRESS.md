@@ -41,7 +41,7 @@
 
 ## 阶段 3 与交付状态
 
-阶段 3 已实现会话 API、控制台界面和回放操作，检查点当时后端 128 passed、Chromium 端到端 6 passed。最终补充验证结果见下方；PR 与最终远程哈希在提交后核对。
+阶段 3 已实现会话 API、控制台界面和回放操作，检查点当时后端 128 passed、Chromium 端到端 6 passed。最终补充验证结果见下方。已创建 [PR #1](https://github.com/loyce-cheng/worldmind/pull/1)，未合并 main。
 
 内核阶段首次测试发现测试轨迹在
 第二步已到达药圃，不能继续要求缺材世界观察相同；现将桥梁隐藏测试与药圃接触
@@ -71,7 +71,8 @@ git status --short
 - 7 类 / 14 份 Full/Local 对照记录可重放，保留 Local 开销高于 Full 的负面结果。
 - README、配置示例、供应商矩阵、实现边界、测试报告、CI 及恢复步骤已补齐。
 - 已推送检查点：`5b13f72`（范围）、`514027e`（内核）、`de0aa43`（模型）、`c7e63ed`（API/界面）。
-- 最终源码/文档/记录随后提交在同一分支；使用远程分支 HEAD 恢复，不依赖本地临时目录。
+- 完整源码/文档/记录提交 [`6379753`](https://github.com/loyce-cheng/worldmind/commit/6379753a37e007c4055d81b72e4e00c112d076e4) 已推送，实际核对 `ls-remote` 与本地 HEAD 一致。此后文档更新仍沿用同一远程分支。
+- 交付 PR：[#1](https://github.com/loyce-cheng/worldmind/pull/1)；[远程分支](https://github.com/loyce-cheng/worldmind/tree/codex/rebuild-v0.1)。GitHub 已排队执行 CI，实际结果见 PR Checks。使用远程分支 HEAD 恢复，不依赖本地临时目录。
 - 未启用付费调用、未部署服务、未合并 main；真实联通、公开托管、Windows 本机和研究结论仍待后续验证。
 
 ### 从源码恢复运行
