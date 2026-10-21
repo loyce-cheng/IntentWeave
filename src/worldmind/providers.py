@@ -253,5 +253,5 @@ def parse_response(protocol: str, data: dict) -> tuple[Proposal, dict]:
             text = data["message"]["content"]
         proposal = parse_proposal(text)
         return proposal, usage_of(protocol, data)
-    except (KeyError, IndexError, TypeError, ValueError):
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
         raise ProviderError("invalid_provider_response") from None

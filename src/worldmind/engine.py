@@ -273,7 +273,7 @@ class Engine:
         return digest(self.logical())
 
     def view(self):
-        return {**self.logical(), "state_hash": self.state_hash(), "events": self.events[-150:],
+        return {**deepcopy(self.logical()), "state_hash": self.state_hash(), "events": deepcopy(self.events[-150:]),
                 "event_count": len(self.events), "cpu_ms": round(self.cpu_ms, 3),
                 "mode": "live_offline", "trace_length": len(self.trace)}
 

@@ -142,7 +142,7 @@ def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) ->
         if path is not None:
             valid, index, reason = validate(ctx, path, budget)
             if valid:
-                return Decision(path, "full" if not previous else "fallback_full",
+                return Decision(path, "fallback_full" if previous and policy == "Local" else "full",
                                 result.reason or reason, len(previous))
             # Expiring remote evidence: certify only a prefix up to an observation.
             prefix = path[:index]
