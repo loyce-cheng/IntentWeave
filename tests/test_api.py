@@ -165,3 +165,49 @@ def test_enabled_models_fail_closed_without_ledger(tmp_path, monkeypatch):
     monkeypatch.setenv("WORLDMIND_MODEL_ACCESS", "a" * 24)
     with pytest.raises(RuntimeError, match="ledger"):
         create_app(ledger_path=str(tmp_path / "missing.db"))
+
+
+def test_session_capacity_and_server_configuration_not_browser_controlled(client):
+    for _ in range(16):
+        assert client.post('/api/sessions', json={}).status_code == 201
+    assert client.post('/api/sessions', json={}).status_code == 429
+    assert client.post('/api/sessions', json={'endpoint':'http://internal.invalid'}).status_code == 422
+
+
+async def test_cancelled_worker_finishes_before_releasing_writer():
+    import threading
+    from worldmind.api import computation
+    entered, release = threading.Event(), threading.Event()
+    events = []
+    def work():
+        entered.set()
+        release.wait(2)
+        events.append('committed')
+    task = asyncio.create_task(computation(work))
+    await asyncio.to_thread(entered.wait, 2)
+    task.cancel()
+    await asyncio.sleep(0.01)
+    assert not task.done()
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert events == ['committed']
+
+
+async def test_per_session_model_limit_survives_reset(tmp_path):
+    async def handler(req):
+        return httpx.Response(200, json=response_for('chat', proposal_for(Engine())))
+    ledger = Ledger(str(tmp_path / 'ledger.db'))
+    service = ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler))
+    app = create_app(model_service=service, model_access='test-access', settings_loader=settings)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as c:
+        data = (await c.post('/api/sessions', json={})).json()
+        path = f'/api/sessions/{data["id"]}'
+        headers = {'x-session-token':data['token'], 'x-model-access':'test-access'}
+        for _ in range(5):
+            response = await c.post(path+'/model', headers=headers, json={'provider':'deepseek'})
+            assert response.status_code == 200
+            assert response.json()['model']['status'] == 'accepted'
+        await c.post(path+'/control', headers=headers, json={'operation':'reset'})
+        assert (await c.post(path+'/model', headers=headers, json={'provider':'deepseek'})).status_code == 429
+        assert ledger.summary()['reserved_requests'] == 5

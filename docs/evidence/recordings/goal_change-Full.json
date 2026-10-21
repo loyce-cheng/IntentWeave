@@ -1,0 +1,66 @@
+{
+  "schema_version": "worldmind-0.1.0/river-1",
+  "config": {
+    "policy": "Full",
+    "goal": "medicine_home",
+    "decision_budget": 3000,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "c44ac36e1ca6795a3f814571f0c44c8e019f0a777774c378fc1667a88db5a3d8",
+  "steps": [
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "9a54e68f41a5a5126854350e779e946b572087fb0c71e1d6e40d180436d7035f",
+      "event_hash": "25649b9568b7e015dbb1cf843f2d5da952becf0eaccacb570c232409eedf8d62"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "14b82af6e102e7402b259651abf0074451cfa1faaf766aa37a0d946ededddadd",
+      "event_hash": "1e740327053ae35a4c99ead924774f2bead840195853a20216c5792b2e5f9bc8"
+    },
+    {
+      "input": {
+        "kind": "goal",
+        "target": "herb_clinic"
+      },
+      "state_hash": "474a7420bfc917634afd8d6870f2448fbe5c12cb28b32f2e49c304167e746cdc",
+      "event_hash": "256b42679dde176edcc4435e20c5d7b09abdc5a5cd35e0f0dd691594fb888322"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "31ed3e54ec7c51c7cc7058a1bd690b41418bf38c8b9411ce66b2f78cf5fa0128",
+      "event_hash": "dcab4e80537b1bf4cb6a147aa5ba5ea6ebafdb07ff526f57ba20c94248d567c7"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "792756467932f4b18268b6189ed5a983b0fd25a6c26926f1f766a0f0f4b4e98c",
+      "event_hash": "c1187a47fc884d9c205c93efb574a772c369814b695e7ff7b09001620da05f3a"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "ab4bfedb6c2bdaed4b51063ac4112dcd05d785e774157b965dc2dd46aa17d802",
+      "event_hash": "c283c3101fc119c498586388a2c05f8c75052b13595d6f86a979c23dbfc586fb"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "47cbcea5ae74d676abbab01a9bfd5ea5f15c7064d87daa5969f17404950e0754",
+      "event_hash": "a4f7506930d0cb8a7af687cb3e3a2f9178e16471c31714b63948b76aaba4d31b"
+    }
+  ],
+  "final_hash": "47cbcea5ae74d676abbab01a9bfd5ea5f15c7064d87daa5969f17404950e0754"
+}

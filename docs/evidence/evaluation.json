@@ -1,0 +1,292 @@
+{
+  "version": "worldmind-0.1.0/river-1",
+  "environment": {
+    "python": "3.12.14",
+    "system": "Linux",
+    "architecture": "x86_64"
+  },
+  "scope": "7 author-written cases x 2 policies; deterministic, not statistical confirmation",
+  "cpu_scope": "planning and sequence validation only, not perception/HTTP/render/network",
+  "results": [
+    {
+      "case": "normal",
+      "policy": "Full",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 1.557498,
+      "replay_verified_steps": 9,
+      "recording": "normal-Full.json"
+    },
+    {
+      "case": "normal",
+      "policy": "Local",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 3.008063,
+      "replay_verified_steps": 9,
+      "recording": "normal-Local.json"
+    },
+    {
+      "case": "hidden_bridge",
+      "policy": "Full",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 59,
+        "validations": 44,
+        "budget_used": 103,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 1.8145129999999998,
+      "replay_verified_steps": 12,
+      "recording": "hidden_bridge-Full.json"
+    },
+    {
+      "case": "hidden_bridge",
+      "policy": "Local",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 57,
+        "validations": 60,
+        "budget_used": 117,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 4.338637,
+      "replay_verified_steps": 12,
+      "recording": "hidden_bridge-Local.json"
+    },
+    {
+      "case": "missing_materials",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 64,
+        "validations": 23,
+        "budget_used": 87,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 2.483885,
+      "replay_verified_steps": 5,
+      "recording": "missing_materials-Full.json"
+    },
+    {
+      "case": "missing_materials",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 85,
+        "validations": 78,
+        "budget_used": 163,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 2.554864,
+      "replay_verified_steps": 5,
+      "recording": "missing_materials-Local.json"
+    },
+    {
+      "case": "no_roads",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.051745,
+      "replay_verified_steps": 9,
+      "recording": "no_roads-Full.json"
+    },
+    {
+      "case": "no_roads",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.066434,
+      "replay_verified_steps": 9,
+      "recording": "no_roads-Local.json"
+    },
+    {
+      "case": "goal_change",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 2.406569,
+      "replay_verified_steps": 7,
+      "recording": "goal_change-Full.json"
+    },
+    {
+      "case": "goal_change",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 2.0237170000000004,
+      "replay_verified_steps": 7,
+      "recording": "goal_change-Local.json"
+    },
+    {
+      "case": "budget_exhaustion",
+      "policy": "Full",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.491154,
+      "replay_verified_steps": 1,
+      "recording": "budget_exhaustion-Full.json"
+    },
+    {
+      "case": "budget_exhaustion",
+      "policy": "Local",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.048093,
+      "replay_verified_steps": 1,
+      "recording": "budget_exhaustion-Local.json"
+    },
+    {
+      "case": "merchant_competition",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 30,
+        "validations": 20,
+        "budget_used": 50,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 1.110827,
+      "replay_verified_steps": 6,
+      "recording": "merchant_competition-Full.json"
+    },
+    {
+      "case": "merchant_competition",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 23,
+        "validations": 41,
+        "budget_used": 64,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 1.1380890000000001,
+      "replay_verified_steps": 6,
+      "recording": "merchant_competition-Local.json"
+    }
+  ]
+}

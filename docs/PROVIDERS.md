@@ -12,7 +12,8 @@
 | `openai` | Responses / Bearer | `max_output_tokens`；`output[].content[].text` | `store=false`；只接受 completed 文本。模型访问取决于项目授权。[官方参考](https://developers.openai.com/api/reference/resources/responses/methods/create) |
 | `openai-chat` | Chat / Bearer | `max_completion_tokens`；choices | 不使用旧 max_tokens 代替推理模型上限；模型参数能力独立确认。[官方参考](https://platform.openai.com/docs/api-reference/chat/object) |
 | `deepseek` | Chat / Bearer | `max_tokens`；choices；缓存命中/未命中统计 | 当前文档有 thinking 开关；本配置明确 disabled。不复用思考原文。[官方参考](https://api-docs.deepseek.com/api/create-chat-completion/)、[思考模式](https://api-docs.deepseek.com/guides/thinking_mode/) |
-| `mimo` | Chat / Bearer | `max_tokens`；choices | 官方 SDK 示例使用 `api.xiaomimimo.com/v1`；只做单轮提议，不实现带工具历史的 reasoning_content 回传。文档正文跳转抓取受限，地址依据官方索引摘要；未验证所有套餐入口。[官方说明](https://platform.xiaomimimo.com/docs/en-US/usage-guide/passing-back-reasoning_content) |
+| `doubao` | 方舟 Chat / Bearer | `max_completion_tokens`；choices | 北京标准按量入口；模型或接入点权限需账号确认，不自动使用 Coding Plan。中文页面动态加载失败后，经官方英文路径及迁移指南核对当前参数。[官方 Chat](https://docs.volcengine.com/docs/ark/chat-api?lang=en)、[迁移示例](https://docs.volcengine.com/docs/ark/responses-api-migration?lang=en) |
+| `mimo` | Chat / api-key | `max_completion_tokens`；choices | 新官方 FAQ 确认 api-key 与 Bearer 均可；按当前示例选择 api-key 和 max_completion_tokens。Token Plan 使用专属 URL/密钥，不混用按量入口；单轮无工具历史。[当前官方 FAQ](https://mimo.mi.com/docs/en-US/quick-start/faq/api-integration)、[开始调用](https://mimo.mi.com/docs/en-US/quick-start/summary/first-api-call) |
 | `gemini` | 原生 generateContent / x-goog-api-key | `maxOutputTokens`；candidates；usageMetadata | 选择原生接口；忽略 thought 内容，记录 thoughtsTokenCount；地区、免费/付费层和模型资格须在项目确认，不假设能关闭所有模型思考。[鉴权](https://ai.google.dev/api)、[接口](https://ai.google.dev/api/generate-content) |
 | `anthropic` | 原生 Messages / x-api-key + anthropic-version | `max_tokens`；text blocks；input/output/cache usage | identity-linked key 可能还需 workspace header，提供服务端 WORKSPACE_ID；不启用 beta 和工具。[Messages](https://platform.claude.com/docs/en/api/typescript/messages/create)、[鉴权](https://platform.claude.com/docs/en/manage-claude/authentication) |
 | `qwen` | DashScope Chat / Bearer | `max_tokens`；choices | 默认北京标准按量入口；新 workspace 域、国际/美国区域必须按账号改 ENDPOINT 和密钥；Coding Plan 不视作通用按量 API。[官方兼容说明](https://docs.modelstudio.console.alibabacloud.com/en/model-studio/compatibility-of-openai-with-dashscope) |
@@ -28,9 +29,11 @@
 | `ollama` | 原生 /api/chat / 本地无鉴权 | `options.num_predict`；message；eval_count | 默认 localhost:11434；stream=false；本机模型需已安装，think 能力按模型发现，不能通用发送。[官方参考](https://docs.ollama.com/api/chat) |
 | `vllm` | Chat / Bearer | `max_tokens`；choices | 自己填写完整服务地址/部署模型 ID；要求已配置 API key，chat template 缺失可导致失败。HTTP 只允许 loopback；不负责下载/启动模型。[官方说明](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) |
 
-本轮另检查了[火山方舟 Chat 文档](https://docs.volcengine.com/docs/ark/chat-api?lang=zh)，
-但正文只返回 JavaScript 壳，尚未取得足够的当前接口参数证据；**未注册 Doubao 配置**，
-不把社区文章当官方 API 规范。其他平台可按相同流程新增配置、来源与契约测试；
+另核查了[腾讯混元官方兼容文档](https://cloud.tencent.com/document/product/1729/111007)：
+当前公告说明新购模型服务迁移至 TokenHub，因此没有将旧混元地址作为新账号推荐配置。
+[百度国际千帆快速开始](https://intl.cloud.baidu.com/en/doc/qianfan/s/qm8qxemze-intl-en)
+给出独立国际入口；本轮未完成该区域完整参数契约核对，未注册为受测配置。
+这两项属于文档调研，不能当作已实现支持。其他平台可按相同流程新增配置、来源与契约测试；
 没有以“自定义 URL”将未知平台标为兼容。Bedrock 签名、Vertex OAuth、更多厂商原生协议、
 多模态、流式、工具调用、自动路由不在当前实现范围。
 

@@ -114,10 +114,11 @@ def test_change_goal_invalidates_generation():
 
 
 def test_fixed_merchant_competes_without_duplicate_stock():
-    e = finish(Engine(Config(merchant_takes_at=2)))
+    e = finish(Engine(Config(merchant_takes_at=2, goal="herb_clinic")))
     assert e.status == "success"
     assert e.merchant["herb"] == 1
-    assert sum(e.world.stock) + e.world.herb + e.merchant["herb"] + e.metrics["consumed"] == 2
+    assert sum(e.world.stock) + e.world.herb + e.merchant["herb"] + e.world.delivered[1] == 2
+    assert e.metrics["repairs"] + e.metrics["fallbacks"] >= 1
     assert replay(e.export())[0].merchant == e.merchant
 
 

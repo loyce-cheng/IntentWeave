@@ -237,3 +237,59 @@ def test_configuration_and_usage_boundaries():
         build_request(s, {"x": "a" * 40000})
     assert usage_of("chat", {"usage": {"prompt_tokens": -1, "completion_tokens": True}})["known"] is False
     assert "fixture-secret" not in repr(s)
+
+# Expectations are independent of the registry, taken from the linked official contracts.
+@pytest.mark.parametrize('name,header,token_field', [
+    ('mimo', 'api-key', 'max_completion_tokens'),
+    ('doubao', 'authorization', 'max_completion_tokens'),
+    ('deepseek', 'authorization', 'max_tokens'),
+    ('openai-chat', 'authorization', 'max_completion_tokens'),
+    ('groq', 'authorization', 'max_completion_tokens'),
+    ('azure', 'api-key', 'max_completion_tokens'),
+])
+def test_documented_profile_differences(name, header, token_field):
+    _, headers, body = build_request(settings(name), Engine().request_context())
+    assert header in {k.lower() for k in headers}
+    assert body[token_field] == 1024
+    alternative = 'max_tokens' if token_field == 'max_completion_tokens' else 'max_completion_tokens'
+    assert alternative not in body
+
+
+@pytest.mark.parametrize('name', ['deepseek', 'openai', 'gemini', 'ollama'])
+def test_opt_in_json_mode_has_protocol_specific_shape(name):
+    _, _, body = build_request(replace(settings(name), json_mode=True), Engine().request_context())
+    if name == 'deepseek':
+        assert body['response_format'] == {'type': 'json_object'}
+    elif name == 'openai':
+        assert body['text'] == {'format': {'type': 'json_object'}}
+    elif name == 'gemini':
+        assert body['generationConfig']['responseMimeType'] == 'application/json'
+    else:
+        assert body['format'] == 'json'
+
+
+@pytest.mark.parametrize('protocol,data', [
+    ('chat', {'choices':[{'finish_reason':'stop','message':'wrong'}]}),
+    ('responses', {'status':'completed','output':[{'type':'function_call'}]}),
+    ('messages', {'stop_reason':'end_turn','content':[{'type':'tool_use'}]}),
+    ('gemini', {'candidates':[{'finishReason':'STOP','content':{'parts':[{'functionCall':{}}]}}]}),
+    ('ollama', {'done':True,'done_reason':'stop','message':{'tool_calls':[{}],'content':'{}'}}),
+])
+def test_malformed_and_tool_responses_are_fixed_errors(protocol, data):
+    with pytest.raises(ProviderError, match='invalid_provider_response'):
+        parse_response(protocol, data)
+
+
+async def test_chunked_response_cannot_bypass_size_limit(tmp_path):
+    class Chunks(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b'x' * 70000
+            yield b'x' * 70000
+    async def handler(req):
+        return httpx.Response(200, stream=Chunks())
+    ledger = Ledger(str(tmp_path / 'ledger.db'))
+    service = ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler))
+    e = Engine()
+    with pytest.raises(ProviderError, match='response_too_large'):
+        await service.propose(settings('deepseek'), e.request_context(), e.context())
+    assert ledger.summary()['requests'][0]['status'] == 'response_too_large'

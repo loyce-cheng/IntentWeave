@@ -266,6 +266,8 @@ class Engine:
     def logical(self):
         return {"version": VERSION, "config": self.config.model_dump(), "world": asdict(self.world),
                 "tick": self.tick, "actor": self.actor_view(), "merchant": self.merchant,
+                "doctor": {"location": "clinic", "policy": "fixed_receiver",
+                           "received_herb": self.world.delivered[1], "received_medicine": self.world.delivered[2]},
                 "goal": self.goal, "status": self.status, "metrics": self.metrics,
                 "last_repair": self.last_repair}
 

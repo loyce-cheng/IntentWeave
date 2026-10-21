@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-21 Asia/Shanghai",
+  "backend": {
+    "passed": 151,
+    "warnings": 1,
+    "statement_coverage_percent": 86.47469458987784,
+    "covered_statements": 991,
+    "total_statements": 1146,
+    "duration_seconds": 11.416
+  },
+  "provider_validation": "19 profiles, protocol simulations only; zero live model calls",
+  "cli_smoke": {
+    "run": "success",
+    "replay_verified_steps": 12
+  },
+  "evaluation": {
+    "cases": 7,
+    "policies": 2,
+    "recordings_verified": 14
+  },
+  "browser_note": "Chromium 151.0.7922.173 from /usr/bin/chromium; Playwright CDN was blocked",
+  "frontend": {
+    "typecheck": "passed",
+    "build": "passed",
+    "format_check": "passed",
+    "browser": {
+      "startTime": "2026-10-21T01:15:20.476Z",
+      "duration": 73014.792,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  "verified_source_sha256": {
+    "requirements-lock.txt": "1ce03b636afebb09fe2ba6501aea073622399dc29e8c06029ef729163955cc1f",
+    "src/worldmind/__init__.py": "8ac2ea0e0ad7d970cf47fc031a4d889cda21085c6dffdb92bbe9d4a135842e23",
+    "src/worldmind/api.py": "7b627ee1fbd4f7c297f4b25d937672a85462002f913a319501d2dcb39a7533c0",
+    "src/worldmind/cli.py": "2968fbe6b1271c0f2aaa0fe14c851354de6646a1456e9df0bab398582da084c3",
+    "src/worldmind/domain.py": "a7387b68e3f4afe56f2a98ffc872d027171d40505c2e7420633d6935431ba49d",
+    "src/worldmind/engine.py": "421df7afac8018186c96a2def36409d5818f19dd687462f59ce266440c7a824b",
+    "src/worldmind/models.py": "30ec9e8c04a816f10fc579df1fbae5f5ed8fc4a057730f90512e8d53686675b7",
+    "src/worldmind/planner.py": "b18a71781381d00b7a1de4a024c8f5dc2a6d637f69f084fb3cd7ebe53fd43ec3",
+    "src/worldmind/providers.py": "5ab567ee92b54016723fc8fee28d0a719d357ce01d62fe995732d18fa5c1584c",
+    "tests/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "tests/test_api.py": "fb759184fde868520fce2a8ec4deeb2078015f692fdc2cdaad1f66dfad71c221",
+    "tests/test_engine.py": "fd5b80e232213c5a4a918fad2b302601f5f160be2504ab0d6495946ee51589fb",
+    "tests/test_models.py": "a9dcfbaad552cc2f30d5cad3e8ead956ce7815f55d3e93b08d1e4f44f37d3958",
+    "web/e2e/demo.spec.ts": "cee829d9e894fa8b94cb183d934afa65701b942f6b80dcb68ca76c1595577b8f",
+    "web/package-lock.json": "ca8c4af0b9d99bc45376c400df3b4c54ec2cfada0df8d65c15fb3a9a996f9319",
+    "web/playwright.config.ts": "b6ab6e37636d3324624deda433a22135c3cc59c397348d0a70c28521378c48fd",
+    "web/src/main.ts": "7ddb59f14064a589e8ac4f76843e8fa801ffc47dab1aa6ee29485f04b8abf4f8",
+    "web/src/style.css": "616b05cbed5d45d06fa2d9b77d3a45ba81e68184a90b97ab4b59a976a7fd1e05",
+    "web/vite.config.ts": "09cc91cf63f3bb34a74c019a0be4cb7c9591c51ba9fcb89c6710a6a68c3d29ee"
+  }
+}
