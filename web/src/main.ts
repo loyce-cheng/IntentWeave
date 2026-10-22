@@ -1,4 +1,6 @@
 import "./style.css";
+import { ApiError, request, ResponseGuard } from "./api";
+import { readArchives, writeArchives, type ArchiveReceipt } from "./archives";
 
 type Action = { kind: string; target: string };
 type State = {
@@ -56,6 +58,8 @@ type View = {
   replay: { verified: number; total: number; complete: boolean } | null;
 };
 type Catalog = {
+  app_version: string;
+  recording_versions: string[];
   places: string[];
   labels: Record<string, string>;
   roads: string[];
@@ -77,6 +81,11 @@ let catalog: Catalog;
 let view: View;
 let session = { id: "", token: "" };
 let busy = false;
+const responses = new ResponseGuard();
+let actorRequest = 0;
+let actorMapVersion = -1;
+let archives: ArchiveReceipt[] = [];
+let archiveStorageReady = true;
 let perspective = "world";
 let actorMap: State | null = null;
 let pair: Pair | null = null;
@@ -121,12 +130,12 @@ $("app").innerHTML = `
 <aside class="sidebar">
   <a class="brand" href="/"><span class="brand-mark">W</span><span>Worldmind<small>界行 · 行动实验室</small></span></a>
   <div class="side-label">WORKSPACE</div>
-  <div class="side-active"><span>◉</span> 河谷救援 <span class="version">0.1</span></div>
+  <div class="side-active"><span>◉</span> 河谷救援 <span class="version" id="side-version"></span></div>
   <div class="side-note">观察 → 规划 → 行动 → 修复</div>
   <div class="side-bottom"><span class="dot"></span> 本地符号规划<br><small>模型为可选提议者<br>每一次行动都留下证据</small></div>
 </aside>
 <main>
-  <header><div class="breadcrumb">Worldmind <span>/</span> 交互演示 <span>/</span> 河谷救援</div><span class="badge">REBUILT · v0.1</span></header>
+  <header><div class="breadcrumb">Worldmind <span>/</span> 交互演示 <span>/</span> 河谷救援</div><span class="badge" id="app-version"></span></header>
   <section class="intro"><div><div class="eyebrow">OBSERVABLE NPC PLANNING</div><h1>世界改变，计划继续。</h1><p>改变道路与资源，观察角色如何发现问题、修复计划，并验证每一步。</p></div><div class="session-indicator"><span class="dot"></span><span id="mode">离线实时运行</span></div></section>
   <div id="error" role="alert" hidden></div>
   <section class="toolbar" aria-label="模拟控制">
@@ -150,30 +159,60 @@ $("app").innerHTML = `
     <div class="replay-controls"><button id="export">↓ 导出当前记录</button><label class="file-button">↑ 导入并验证<input id="import" type="file" accept=".json,application/json" /></label><span id="replay-status">同版本输入重执行 · 每步状态及事件哈希检查</span></div>
     <div id="replay-controls" hidden><button id="replay-start">回放起点</button><button id="replay-next">校验下一步 →</button><label>记录位置 <input id="cursor" type="range" min="0" value="0" /></label></div>
   </section>
-  <section class="panel lower"><div class="panel-head"><div><span class="index">06</span><h2>可选模型提议</h2></div><span id="model-enabled" class="badge"></span></div><p class="muted">模型只接收角色认知。提议需通过语法、语义和当前版本检查。密钥仅由服务端配置。</p><div class="model-controls"><label>服务配置<select id="provider"></select></label><label>演示访问口令<input id="model-access" type="password" autocomplete="off" placeholder="不是供应商 API Key" /></label><button id="model-propose">请求一次提议</button><button id="model-cancel">取消请求</button></div><div id="model-status" class="muted"></div></section>
-  <footer><span>WORLD MIND / 有限世界，可解释行动。</span><span>会话保存在内存，服务重启会清空。请导出需要保留的记录。</span></footer>
+  <section class="panel lower" aria-label="持久回放存档"><div class="panel-head"><div><span class="index">06</span><h2>回放存档</h2></div><span class="badge">服务重启后可恢复</span></div>
+    <div class="archive-controls"><label>存档名称<input id="archive-name" maxlength="80" placeholder="例如：断桥后的送药记录" /></label><button id="archive-save">保存当前回放</button></div>
+    <p class="muted">存档保留 7 天，恢复后为只读回放。此浏览器保存访问凭据；清除浏览器数据会丢失入口。请导出 JSON 作为长期或跨设备备份。</p>
+    <div id="archive-status" class="muted" role="status"></div><div id="archives" class="archive-list"></div>
+  </section>
+  <section class="panel lower"><div class="panel-head"><div><span class="index">07</span><h2>可选模型提议</h2></div><span id="model-enabled" class="badge"></span></div><p class="muted">模型只接收角色认知。提议需通过语法、语义和当前版本检查。密钥仅由服务端配置。</p><div class="model-controls"><label>服务配置<select id="provider"></select></label><label>演示访问口令<input id="model-access" type="password" autocomplete="off" placeholder="不是供应商 API Key" /></label><button id="model-propose">请求一次提议</button><button id="model-cancel">取消请求</button></div><div id="model-status" class="muted"></div></section>
+  <footer><span>WORLD MIND / 有限世界，可解释行动。</span><span>运行会话在内存中；需要保留的轨迹请存档或导出。</span></footer>
 </main>`;
 
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(session.token ? { "X-Session-Token": session.token } : {}),
-    ...options.headers,
-  };
-  const response = await fetch("/api" + path, { ...options, headers });
-  if (!response.ok) {
-    const data = await response
-      .json()
-      .catch(() => ({ detail: response.statusText }));
-    throw new Error(
-      typeof data.detail === "string"
-        ? data.detail
-        : `输入未通过校验 (${response.status})`,
+const api = <T>(path: string, options: RequestInit = {}) =>
+  request<T>(path, options, { ...session });
+const spath = (id = session.id) => `/sessions/${id}`;
+
+async function readActor() {
+  const capability = { ...session };
+  const stamp = responses.capture(capability.id);
+  const requestId = ++actorRequest;
+  if (perspective !== "actor") return;
+  try {
+    const known = await request<View["actor"]>(
+      spath(capability.id) + "/actor",
+      {},
+      capability,
     );
+    if (
+      responses.current(stamp, session.id) &&
+      requestId === actorRequest &&
+      perspective === "actor" &&
+      known.context.knowledge_version >= view.actor.context.knowledge_version
+    ) {
+      actorMap = known.context.state;
+      actorMapVersion = known.context.knowledge_version;
+      map();
+    }
+  } catch (error) {
+    if (responses.current(stamp, session.id) && requestId === actorRequest)
+      notify(error);
   }
-  return response.json();
 }
-const spath = () => `/sessions/${session.id}`;
+
+async function updateView(path: string, options: RequestInit = {}) {
+  const capability = { ...session };
+  const stamp = responses.capture(capability.id);
+  const latest = await request<View>(path, options, capability);
+  if (responses.accept(stamp, session.id, latest.revision, view.revision)) {
+    view = latest;
+    if (actorMapVersion !== view.actor.context.knowledge_version) {
+      actorMap = null;
+      actorMapVersion = -1;
+    }
+    render();
+    await readActor();
+  }
+}
 function notify(error: unknown) {
   $("error").textContent =
     error instanceof Error ? error.message : String(error);
@@ -182,13 +221,17 @@ function notify(error: unknown) {
 async function perform(fn: () => Promise<void>) {
   if (busy) return;
   busy = true;
+  responses.invalidate();
+  actorRequest += 1;
   $("error").hidden = true;
+  renderControls();
   try {
     await fn();
   } catch (e) {
     notify(e);
   } finally {
     busy = false;
+    renderControls();
   }
 }
 async function createSession() {
@@ -203,12 +246,19 @@ async function createSession() {
       }),
     },
   );
+  responses.invalidate();
   session = { id: data.id, token: data.token };
   view = data.view;
+  actorMap = null;
+  actorMapVersion = -1;
+  pair = null;
+  $("comparison").innerHTML =
+    '<div class="empty">运行一次对照，让结果回答问题。</div>';
   render();
+  await readActor();
 }
 async function command(kind: string, target?: string) {
-  view = await api<View>(spath() + "/commands", {
+  await updateView(spath() + "/commands", {
     method: "POST",
     body: JSON.stringify({
       command_id: crypto.randomUUID(),
@@ -216,14 +266,12 @@ async function command(kind: string, target?: string) {
       command: { kind, ...(target ? { target } : {}) },
     }),
   });
-  render();
 }
 async function control(operation: string) {
-  view = await api<View>(spath() + "/control", {
+  await updateView(spath() + "/control", {
     method: "POST",
     body: JSON.stringify({ operation }),
   });
-  render();
 }
 function download(data: unknown, name: string) {
   const url = URL.createObjectURL(
@@ -367,10 +415,43 @@ function render() {
   const u = view.model.usage;
   $("model-status").textContent =
     `状态：${statusLabel[view.model.status] ?? view.model.status} · 用量：${u?.known ? `${u.input_tokens} 输入 / ${u.output_tokens} 输出 token` : "未知或未调用"} · 费用未知`;
+  renderControls();
+}
+
+function renderControls() {
+  if (!view) return;
   for (const id of ["step", "run", "changeGoal", "block", "remove", "cancel"])
     $<HTMLButtonElement>(id).disabled =
-      !!view.replay || (view.running && ["step", "run"].includes(id));
+      busy || !!view.replay || (view.running && ["step", "run"].includes(id));
   $<HTMLButtonElement>("step").disabled ||= view.model.status === "pending";
+  for (const id of [
+    "pause",
+    "reset",
+    "compare",
+    "export",
+    "replay-start",
+    "replay-next",
+    "model-cancel",
+  ])
+    $<HTMLButtonElement>(id).disabled = busy;
+  $<HTMLSelectElement>("policy").disabled = busy;
+  $<HTMLInputElement>("import").disabled = busy;
+  $<HTMLInputElement>("cursor").disabled = busy;
+  $<HTMLButtonElement>("archive-save").disabled = busy || !archiveStorageReady;
+  for (const button of Array.from(
+    $("archives").querySelectorAll<HTMLButtonElement>("button"),
+  )) {
+    const receipt = archives[Number(button.dataset.restore)];
+    button.disabled =
+      busy ||
+      (button.dataset.restore !== undefined &&
+        receipt.expires_at * 1000 <= Date.now());
+  }
+  $<HTMLButtonElement>("model-propose").disabled =
+    busy ||
+    !catalog.models_enabled ||
+    !!view.replay ||
+    view.model.status === "pending";
 }
 
 function renderPair() {
@@ -389,15 +470,99 @@ function renderPair() {
   $("export-pair").onclick = () => download(pair, "worldmind-comparison.json");
 }
 async function seek(until: number) {
-  view = await api<View>(spath() + "/replay", {
+  await updateView(spath() + "/replay", {
     method: "POST",
     body: JSON.stringify({ until }),
   });
-  render();
+}
+
+function renderArchives() {
+  $("archives").innerHTML = archives.length
+    ? archives
+        .map((archive, index) => {
+          const expires = new Date(archive.expires_at * 1000).toLocaleString();
+          const expired = archive.expires_at * 1000 <= Date.now();
+          return `<article class="archive-row"><div><strong>${esc(archive.name)}</strong><small>${archive.step_count} 步 · ${esc(archive.schema_version)}<br>${expired ? "已到期" : "到期：" + esc(expires)}</small></div><div class="archive-actions"><button data-restore="${index}" ${expired ? "disabled" : ""}>恢复回放</button><button data-delete="${index}" class="quiet">删除存档</button></div></article>`;
+        })
+        .join("")
+    : '<div class="empty">此浏览器尚无存档入口。保存后可在刷新页面或服务重启后恢复。</div>';
+  for (const button of Array.from(
+    $("archives").querySelectorAll<HTMLButtonElement>("[data-restore]"),
+  )) {
+    button.onclick = () =>
+      perform(async () => {
+        const archive = archives[Number(button.dataset.restore)];
+        await updateView(spath() + `/archives/${archive.id}/restore`, {
+          method: "POST",
+          headers: { "X-Archive-Token": archive.token },
+        });
+        $("archive-status").textContent =
+          `已验证并恢复“${archive.name}”，当前为只读回放。`;
+      });
+  }
+  for (const button of Array.from(
+    $("archives").querySelectorAll<HTMLButtonElement>("[data-delete]"),
+  )) {
+    button.onclick = () =>
+      perform(async () => {
+        const archive = archives[Number(button.dataset.delete)];
+        let missing = false;
+        try {
+          await request(`/archives/${archive.id}`, {
+            method: "DELETE",
+            headers: { "X-Archive-Token": archive.token },
+          });
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 404) throw error;
+          missing = true;
+        }
+        archives = readArchives().filter((item) => item.id !== archive.id);
+        writeArchives(archives);
+        renderArchives();
+        $("archive-status").textContent = missing
+          ? "已移除本地入口；服务端存档不存在、已到期或凭据无效。"
+          : `已删除“${archive.name}”。`;
+      });
+  }
+}
+
+async function saveArchive() {
+  archives = readArchives();
+  if (archives.length >= 64)
+    throw new Error("本地存档索引已满，请先删除不需要的存档。");
+  writeArchives(archives);
+  const name =
+    $<HTMLInputElement>("archive-name").value.trim() ||
+    `${catalog.goals[view.goal]} · tick ${view.tick}`;
+  const receipt = await api<ArchiveReceipt>(spath() + "/archives", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  archives = [...readArchives(), receipt];
+  try {
+    writeArchives(archives);
+  } catch (error) {
+    download(receipt, "worldmind-archive-access.json");
+    renderArchives();
+    throw new Error("浏览器无法保存存档入口，已下载访问凭据备份；请妥善保管。");
+  }
+  renderArchives();
+  $("archive-status").textContent =
+    `已保存“${receipt.name}”；服务重启后仍可恢复。`;
 }
 
 async function init() {
   catalog = await api<Catalog>("/catalog");
+  $("side-version").textContent = catalog.app_version;
+  $("app-version").textContent = `v${catalog.app_version}`;
+  try {
+    archives = readArchives();
+    renderArchives();
+  } catch (error) {
+    archiveStorageReady = false;
+    $("archive-status").textContent = String(error);
+    $<HTMLButtonElement>("archive-save").disabled = true;
+  }
   $("goal").innerHTML = Object.entries(catalog.goals)
     .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`)
     .join("");
@@ -434,13 +599,11 @@ async function init() {
     perform(() => command("remove", $<HTMLSelectElement>("material").value));
   $("perspective").onchange = async () => {
     perspective = $<HTMLSelectElement>("perspective").value;
-    try {
-      if (perspective === "actor")
-        actorMap = (await api<View["actor"]>(spath() + "/actor")).context.state;
-      map();
-    } catch (e) {
-      notify(e);
-    }
+    actorRequest += 1;
+    actorMap = null;
+    actorMapVersion = -1;
+    map();
+    await readActor();
   };
   $("compare").onclick = () =>
     perform(async () => {
@@ -456,11 +619,10 @@ async function init() {
       const file = $<HTMLInputElement>("import").files?.[0];
       if (!file) return;
       if (file.size > 2_000_000) throw new Error("记录文件不能超过 2 MB");
-      view = await api<View>(spath() + "/import", {
+      await updateView(spath() + "/import", {
         method: "POST",
         body: JSON.stringify({ recording: JSON.parse(await file.text()) }),
       });
-      render();
       $<HTMLInputElement>("import").value = "";
     });
   $("replay-start").onclick = () => perform(() => seek(0));
@@ -471,11 +633,15 @@ async function init() {
   $("cursor").onchange = () =>
     perform(() => seek(Number($<HTMLInputElement>("cursor").value)));
   $("model-propose").onclick = async () => {
+    if (busy || view.model.status === "pending") return;
+    responses.invalidate();
+    actorRequest += 1;
+    const stamp = responses.capture(session.id);
     $("error").hidden = true;
     try {
       view.model.status = "pending";
       render();
-      view = await api<View>(spath() + "/model", {
+      await updateView(spath() + "/model", {
         method: "POST",
         headers: {
           "X-Model-Access": $<HTMLInputElement>("model-access").value,
@@ -484,31 +650,22 @@ async function init() {
           provider: $<HTMLSelectElement>("provider").value,
         }),
       });
-      render();
-    } catch (e) {
-      notify(e);
+    } catch (error) {
+      if (responses.current(stamp, session.id)) notify(error);
     }
   };
   $("model-cancel").onclick = () =>
     perform(async () => {
       await api(spath() + "/model/cancel", { method: "POST" });
     });
+  $("archive-save").onclick = () => perform(saveArchive);
   window.setInterval(async () => {
     if (busy || !session.id) return;
-    const requestedSession = session.id;
+    const stamp = responses.capture(session.id);
     try {
-      const latest = await api<View>(spath());
-      const known =
-        perspective === "actor"
-          ? await api<View["actor"]>(spath() + "/actor")
-          : null;
-      if (session.id === requestedSession && latest.revision >= view.revision) {
-        view = latest;
-        if (known) actorMap = known.context.state;
-        render();
-      }
-    } catch (e) {
-      notify(e);
+      await updateView(spath());
+    } catch (error) {
+      if (responses.current(stamp, session.id)) notify(error);
     }
   }, 500);
 }

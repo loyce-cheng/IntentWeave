@@ -1,0 +1,87 @@
+{
+  "schema_version": "worldmind-0.1.0/river-1",
+  "config": {
+    "policy": "Local",
+    "goal": "medicine_home",
+    "decision_budget": 3000,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "a80301e7724d3534b8ff839722eaaad98bc5429ac7519dfd597102dbace33cc7",
+  "steps": [
+    {
+      "input": {
+        "kind": "block",
+        "target": "clinic|warehouse"
+      },
+      "state_hash": "49c5772be321d9041670f6750a0266853eae5932a47cfe10bbd419d43eeaf03a",
+      "event_hash": "fbb0856335c7b2255cdf2639e0b91f64280b04218571da0fae75ac728507da5b"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "garden|warehouse"
+      },
+      "state_hash": "c1fa9929b150e62e0acacbf37e0e2b5d27a1cf8a91f2086fef7eda926f66046c",
+      "event_hash": "546517f9b32e81cb41d85a14a8c422949544c4412c1618258f1d15ed18b1f22d"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "garden|workshop"
+      },
+      "state_hash": "cf71808dd9e8be5e8864cd87086c2f230e6dc69aa73b1148ab185bc677fb7e26",
+      "event_hash": "fb7cf9524ce9b2177fcb5133041e8a9535c0041007082f15b9b6c368d58432e4"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "clinic|workshop"
+      },
+      "state_hash": "fd3d01a7dececa643afb71bbbc40d04df65de031c2a026c2a6cceb87b77124f7",
+      "event_hash": "cdcbf5219757496567f1535a9eb306635f5a08f09dc6004feb19a78d4c37eb09"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "bridge|workshop"
+      },
+      "state_hash": "6c0587dbcc7b31be9b10dd66c631c623ef947d739d83ef0bd2ad0f975139b368",
+      "event_hash": "e25b705c4267861ba66a972f5e4467803245968d310fe28fd80f61563b45263f"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "bridge|home"
+      },
+      "state_hash": "90f4700b35db1a42d4a83a704ddbea950f1b122b25e36905f92818259ac6bd53",
+      "event_hash": "5b30db390d441d30e27ad3a9aae032089b69ad37fcc7880b79ea4b2c11bcf4d5"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "ferry|workshop"
+      },
+      "state_hash": "636cbd482f9c08d87e7b2e274e5d04f6a03590c7748f057cbd910e3fddfc1c08",
+      "event_hash": "22e4ea52355d42cf5e2896246fea01f12b3e1ca92de4fa025281ee235a992710"
+    },
+    {
+      "input": {
+        "kind": "block",
+        "target": "ferry|home"
+      },
+      "state_hash": "ccfcdd8825943974818d7ae98998bb4e947caab216a66667685b90edf4e2dc0f",
+      "event_hash": "d53880a0632c5aef9a059a163b4c132588cc7b26fc534d620c8b17fc3ae2e63a"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "0cf980477bb693977c958192da5b06cb5e60677da1d4b0ce97e981a1ebe5d6d8",
+      "event_hash": "379be8e0c31e252ee1b5d2f923c03fe3360db4a9292e9aaae8fece30ee6befe0"
+    }
+  ],
+  "final_hash": "0cf980477bb693977c958192da5b06cb5e60677da1d4b0ce97e981a1ebe5d6d8"
+}

@@ -1,0 +1,889 @@
+{
+  "scope": "9 author-written development cases x 2 versions x 2 policies; no statistical inference",
+  "budget_scope": "node expansions + action validation, including suffix-boundary compilation",
+  "cpu_scope": "planning and sequence validation only; individual timings are not a speed claim",
+  "environment": {
+    "python": "3.12.14",
+    "system": "Linux",
+    "architecture": "x86_64"
+  },
+  "cases": {
+    "normal": {
+      "config": {},
+      "interventions": []
+    },
+    "hidden_bridge": {
+      "config": {},
+      "interventions": [
+        [
+          1,
+          "block",
+          "bridge|home"
+        ]
+      ]
+    },
+    "missing_materials": {
+      "config": {},
+      "interventions": [
+        [
+          0,
+          "remove",
+          "garden"
+        ],
+        [
+          0,
+          "remove",
+          "warehouse"
+        ]
+      ]
+    },
+    "no_roads": {
+      "config": {},
+      "interventions": [
+        [
+          0,
+          "block",
+          "clinic|warehouse"
+        ],
+        [
+          0,
+          "block",
+          "garden|warehouse"
+        ],
+        [
+          0,
+          "block",
+          "garden|workshop"
+        ],
+        [
+          0,
+          "block",
+          "clinic|workshop"
+        ],
+        [
+          0,
+          "block",
+          "bridge|workshop"
+        ],
+        [
+          0,
+          "block",
+          "bridge|home"
+        ],
+        [
+          0,
+          "block",
+          "ferry|workshop"
+        ],
+        [
+          0,
+          "block",
+          "ferry|home"
+        ]
+      ]
+    },
+    "goal_change": {
+      "config": {},
+      "interventions": [
+        [
+          2,
+          "goal",
+          "herb_clinic"
+        ]
+      ]
+    },
+    "budget_exhaustion": {
+      "config": {
+        "decision_budget": 1
+      },
+      "interventions": []
+    },
+    "merchant_competition": {
+      "config": {
+        "goal": "herb_clinic",
+        "merchant_takes_at": 2
+      },
+      "interventions": []
+    },
+    "short_evidence_ttl": {
+      "config": {
+        "evidence_ttl": 3,
+        "max_ticks": 40
+      },
+      "interventions": []
+    },
+    "both_home_roads_lost": {
+      "config": {},
+      "interventions": [
+        [
+          1,
+          "block",
+          "bridge|home"
+        ],
+        [
+          5,
+          "block",
+          "ferry|home"
+        ]
+      ]
+    }
+  },
+  "results": [
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "normal",
+      "policy": "Full",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 4.406016999999999,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.1.0-normal-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "normal",
+      "policy": "Local",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 6.129372999999999,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.1.0-normal-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "hidden_bridge",
+      "policy": "Full",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 59,
+        "validations": 44,
+        "budget_used": 103,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 7.253846999999999,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.1.0-hidden_bridge-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "hidden_bridge",
+      "policy": "Local",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 57,
+        "validations": 60,
+        "budget_used": 117,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 6.808307000000001,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.1.0-hidden_bridge-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "missing_materials",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 64,
+        "validations": 23,
+        "budget_used": 87,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 5.1472,
+      "replay_verified_steps": 5,
+      "recording": "worldmind-0.1.0-missing_materials-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "missing_materials",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 85,
+        "validations": 78,
+        "budget_used": 163,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 6.0075400000000005,
+      "replay_verified_steps": 5,
+      "recording": "worldmind-0.1.0-missing_materials-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "no_roads",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.107915,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.1.0-no_roads-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "no_roads",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.107618,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.1.0-no_roads-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "goal_change",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 4.1073450000000005,
+      "replay_verified_steps": 7,
+      "recording": "worldmind-0.1.0-goal_change-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "goal_change",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 3.0788980000000006,
+      "replay_verified_steps": 7,
+      "recording": "worldmind-0.1.0-goal_change-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "budget_exhaustion",
+      "policy": "Full",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.049334,
+      "replay_verified_steps": 1,
+      "recording": "worldmind-0.1.0-budget_exhaustion-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "budget_exhaustion",
+      "policy": "Local",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.079594,
+      "replay_verified_steps": 1,
+      "recording": "worldmind-0.1.0-budget_exhaustion-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "merchant_competition",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 30,
+        "validations": 20,
+        "budget_used": 50,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 1.232732,
+      "replay_verified_steps": 6,
+      "recording": "worldmind-0.1.0-merchant_competition-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "merchant_competition",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 23,
+        "validations": 41,
+        "budget_used": 64,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 2.7763049999999994,
+      "replay_verified_steps": 6,
+      "recording": "worldmind-0.1.0-merchant_competition-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "short_evidence_ttl",
+      "policy": "Full",
+      "status": "tick_limit",
+      "tick": 40,
+      "metrics": {
+        "expansions": 425,
+        "validations": 71,
+        "budget_used": 496,
+        "decisions": 20,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 40,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 27.622609000000004,
+      "replay_verified_steps": 41,
+      "recording": "worldmind-0.1.0-short_evidence_ttl-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "short_evidence_ttl",
+      "policy": "Local",
+      "status": "tick_limit",
+      "tick": 40,
+      "metrics": {
+        "expansions": 425,
+        "validations": 71,
+        "budget_used": 496,
+        "decisions": 20,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 40,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 31.356426,
+      "replay_verified_steps": 41,
+      "recording": "worldmind-0.1.0-short_evidence_ttl-Local.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "both_home_roads_lost",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 10,
+      "metrics": {
+        "expansions": 95,
+        "validations": 60,
+        "budget_used": 155,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 4.582515,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.1.0-both_home_roads_lost-Full.json"
+    },
+    {
+      "version": "worldmind-0.1.0/river-1",
+      "case": "both_home_roads_lost",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 10,
+      "metrics": {
+        "expansions": 129,
+        "validations": 278,
+        "budget_used": 407,
+        "decisions": 3,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 5.576658999999999,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.1.0-both_home_roads_lost-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "normal",
+      "policy": "Full",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 3.7939990000000003,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.2.0-normal-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "normal",
+      "policy": "Local",
+      "status": "success",
+      "tick": 9,
+      "metrics": {
+        "expansions": 50,
+        "validations": 36,
+        "budget_used": 86,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 3.107645,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.2.0-normal-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "hidden_bridge",
+      "policy": "Full",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 59,
+        "validations": 44,
+        "budget_used": 103,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 5.097523999999999,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.2.0-hidden_bridge-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "hidden_bridge",
+      "policy": "Local",
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 57,
+        "validations": 45,
+        "budget_used": 102,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 5.114439000000001,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.2.0-hidden_bridge-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "missing_materials",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 64,
+        "validations": 23,
+        "budget_used": 87,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 4.2032,
+      "replay_verified_steps": 5,
+      "recording": "worldmind-0.2.0-missing_materials-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "missing_materials",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 3,
+      "metrics": {
+        "expansions": 78,
+        "validations": 31,
+        "budget_used": 109,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 2,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 3.8749200000000004,
+      "replay_verified_steps": 5,
+      "recording": "worldmind-0.2.0-missing_materials-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "no_roads",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.086549,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.2.0-no_roads-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "no_roads",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 1,
+      "metrics": {
+        "expansions": 2,
+        "validations": 1,
+        "budget_used": 3,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.073764,
+      "replay_verified_steps": 9,
+      "recording": "worldmind-0.2.0-no_roads-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "goal_change",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 10.747349,
+      "replay_verified_steps": 7,
+      "recording": "worldmind-0.2.0-goal_change-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "goal_change",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 70,
+        "validations": 25,
+        "budget_used": 95,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 4.814948,
+      "replay_verified_steps": 7,
+      "recording": "worldmind-0.2.0-goal_change-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "budget_exhaustion",
+      "policy": "Full",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.206698,
+      "replay_verified_steps": 1,
+      "recording": "worldmind-0.2.0-budget_exhaustion-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "budget_exhaustion",
+      "policy": "Local",
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 1,
+        "validations": 0,
+        "budget_used": 1,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 0.054031,
+      "replay_verified_steps": 1,
+      "recording": "worldmind-0.2.0-budget_exhaustion-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "merchant_competition",
+      "policy": "Full",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 30,
+        "validations": 20,
+        "budget_used": 50,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 1.637705,
+      "replay_verified_steps": 6,
+      "recording": "worldmind-0.2.0-merchant_competition-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "merchant_competition",
+      "policy": "Local",
+      "status": "success",
+      "tick": 6,
+      "metrics": {
+        "expansions": 23,
+        "validations": 22,
+        "budget_used": 45,
+        "decisions": 2,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 1.909017,
+      "replay_verified_steps": 6,
+      "recording": "worldmind-0.2.0-merchant_competition-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "short_evidence_ttl",
+      "policy": "Full",
+      "status": "tick_limit",
+      "tick": 40,
+      "metrics": {
+        "expansions": 425,
+        "validations": 71,
+        "budget_used": 496,
+        "decisions": 20,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 40,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 53.73835000000001,
+      "replay_verified_steps": 41,
+      "recording": "worldmind-0.2.0-short_evidence_ttl-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "short_evidence_ttl",
+      "policy": "Local",
+      "status": "tick_limit",
+      "tick": 40,
+      "metrics": {
+        "expansions": 425,
+        "validations": 71,
+        "budget_used": 496,
+        "decisions": 20,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 40,
+        "consumed": 0,
+        "produced": 0
+      },
+      "planning_cpu_ms": 20.127619000000006,
+      "replay_verified_steps": 41,
+      "recording": "worldmind-0.2.0-short_evidence_ttl-Local.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "both_home_roads_lost",
+      "policy": "Full",
+      "status": "unknown",
+      "tick": 10,
+      "metrics": {
+        "expansions": 95,
+        "validations": 60,
+        "budget_used": 155,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 8.968972999999998,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.2.0-both_home_roads_lost-Full.json"
+    },
+    {
+      "version": "worldmind-0.2.0/river-1",
+      "case": "both_home_roads_lost",
+      "policy": "Local",
+      "status": "unknown",
+      "tick": 10,
+      "metrics": {
+        "expansions": 111,
+        "validations": 62,
+        "budget_used": 173,
+        "decisions": 3,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 8,
+        "consumed": 1,
+        "produced": 1
+      },
+      "planning_cpu_ms": 7.428265,
+      "replay_verified_steps": 12,
+      "recording": "worldmind-0.2.0-both_home_roads_lost-Local.json"
+    }
+  ]
+}

@@ -885,3 +885,59 @@ footer {
   background: #fafcf7;
   border-top: 1px solid #edf1e6;
 }
+
+.archive-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 22px 0;
+}
+.archive-controls label {
+  flex: 1;
+  min-width: 160px;
+  max-width: 420px;
+}
+.archive-list {
+  padding: 0 22px 18px;
+}
+.archive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding: 15px 0;
+}
+.archive-row > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.archive-row strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.archive-row small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.archive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .archive-controls,
+  .archive-list {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  .archive-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

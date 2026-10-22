@@ -1,3 +1,5 @@
-"""Worldmind v0.1: newly built from the archived design, not recovered code."""
+"""Worldmind: deterministic planning, explicit evidence and verified recordings."""
 
-__version__ = "0.1.0"
+from .version import __version__
+
+__all__ = ["__version__"]

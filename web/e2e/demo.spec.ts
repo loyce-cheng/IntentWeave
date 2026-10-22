@@ -141,3 +141,93 @@ test("mobile layout, no API credentials and model calls disabled", async ({
   await expect(page.locator("#metrics")).toContainText("TICK 1");
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
 });
+
+test("archive library survives page reload and restores verified read-only replay", async ({
+  page,
+}) => {
+  await expect(page.locator("#app-version")).toHaveText("v0.2.0");
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 2");
+  await page
+    .locator("#archive-name")
+    .fill("断桥回归 <script>never execute</script>");
+  await page.locator("#model-access").evaluate((input: HTMLInputElement) => {
+    input.value = "private-demo-passphrase-not-for-storage";
+  });
+  await page.locator("#archive-save").click();
+  await expect(page.locator("#archive-status")).toContainText("已保存");
+  await expect(page.locator("#archives .archive-row")).toHaveCount(1);
+  await expect(page.locator("#archives script")).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "private-demo-passphrase-not-for-storage",
+  );
+  await page.reload();
+  await expect(page.locator("#metrics")).toContainText("准备就绪");
+  await expect(page.locator("#archives")).toContainText("断桥回归");
+  await page.getByRole("button", { name: "恢复回放", exact: true }).click();
+  await expect(page.locator("#archive-status")).toContainText("已验证并恢复");
+  await expect(page.locator("#metrics")).toContainText("TICK 2");
+  await expect(page.locator("#step")).toBeDisabled();
+  await expect(page.locator("#mode")).toContainText("录制回放");
+  await page.locator("#replay-start").click();
+  await expect(page.locator("#replay-status")).toContainText("已验证 0 /");
+  await page.locator("#replay-next").click();
+  await expect(page.locator("#replay-status")).toContainText("已验证 1 /");
+  await page.getByRole("button", { name: "删除存档", exact: true }).click();
+  await expect(page.locator("#archive-status")).toContainText("已删除");
+  await expect(page.locator("#archives .archive-row")).toHaveCount(0);
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("worldmind.archive-capabilities.v1")!),
+    ),
+  ).toEqual([]);
+});
+
+test("late response from a replaced session cannot overwrite the new session", async ({
+  page,
+}) => {
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let captured!: () => void;
+  const snapshotCaptured = new Promise<void>((resolve) => {
+    captured = resolve;
+  });
+  let first = true;
+  await page.route(/\/api\/sessions\/[^/]+$/, async (route) => {
+    if (first && route.request().method() === "GET") {
+      first = false;
+      const response = await route.fetch();
+      captured();
+      await delayed;
+      await route.fulfill({ response });
+    } else await route.continue();
+  });
+  await snapshotCaptured;
+  await page.locator("#policy").selectOption("Full");
+  await expect(page.locator("#metrics")).toContainText("TICK 0 · Full");
+  const observed: string[] = [];
+  await page.exposeFunction("observeMetrics", (text: string) => {
+    observed.push(text);
+  });
+  await page.evaluate(() => {
+    new MutationObserver(() => {
+      (
+        window as unknown as { observeMetrics: (text: string) => void }
+      ).observeMetrics(document.querySelector("#metrics")!.textContent!);
+    }).observe(document.querySelector("#metrics")!, {
+      childList: true,
+      subtree: true,
+    });
+  });
+  release();
+  await page.waitForTimeout(750);
+  await expect(page.locator("#metrics")).toContainText("TICK 0 · Full");
+  expect(observed.every((text) => text.includes("TICK 0 · Full"))).toBe(true);
+  await expect(page.locator("#error")).toBeHidden();
+});
