@@ -190,6 +190,19 @@ class WorldmindSession:
     def seek(self, until: int) -> dict:
         return self._request("POST", "/replay", json={"until": until})
 
+    def resume(self, *, command_id: str | None = None,
+               expected_revision: int | None = None) -> dict:
+        """Continue from the verified cursor, paused, using its original protocol.
+
+        Pass both original identifiers for an explicit idempotent retry. This
+        does not replenish budgets, revive terminal runs, or resume model calls.
+        """
+        revision = self.view()["revision"] if expected_revision is None else expected_revision
+        return self._request("POST", "/resume", json={
+            "command_id": command_id if command_id is not None else uuid4().hex,
+            "expected_revision": revision,
+        })
+
     def save_archive(self, name: str) -> ArchiveReceipt:
         return ArchiveReceipt(**self._request("POST", "/archives", json={"name": name}))
 

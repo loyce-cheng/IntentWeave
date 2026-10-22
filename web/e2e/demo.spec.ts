@@ -142,10 +142,10 @@ test("mobile layout, no API credentials and model calls disabled", async ({
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
 });
 
-test("archive library survives page reload and restores verified read-only replay", async ({
+test("archive survives reload, verifies replay and resumes a branch without changing the source", async ({
   page,
 }) => {
-  await expect(page.locator("#app-version")).toHaveText("v0.2.0");
+  await expect(page.locator("#app-version")).toHaveText("v0.2.1");
   await page.locator("#step").click();
   await expect(page.locator("#metrics")).toContainText("TICK 1");
   await page.locator("#step").click();
@@ -175,6 +175,28 @@ test("archive library survives page reload and restores verified read-only repla
   await expect(page.locator("#replay-status")).toContainText("已验证 0 /");
   await page.locator("#replay-next").click();
   await expect(page.locator("#replay-status")).toContainText("已验证 1 /");
+  await page.locator("#replay-resume").click();
+  await expect(page.locator("#archive-status")).toContainText("可执行分支");
+  await expect(page.locator("#replay-controls")).toBeHidden();
+  await expect(page.locator("#step")).toBeEnabled();
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  await page.locator("#goal").selectOption("herb_clinic");
+  await page.locator("#changeGoal").click();
+  await page.locator("#run").click();
+  await expect(page.locator("#metrics")).toContainText("目标已完成");
+  const branchDownload = page.waitForEvent("download");
+  await page.locator("#export").click();
+  const branchFile = await branchDownload;
+  const branchContents = await readFile((await branchFile.path())!, "utf8");
+  await page.locator("#import").setInputFiles({
+    name: "branch.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(branchContents),
+  });
+  await expect(page.locator("#replay-status")).toContainText("全部一致");
+  await page.getByRole("button", { name: "恢复回放", exact: true }).click();
+  await expect(page.locator("#metrics")).toContainText("TICK 2");
+  await expect(page.locator("#replay-status")).toContainText("已验证 2 / 2");
   await page.getByRole("button", { name: "删除存档", exact: true }).click();
   await expect(page.locator("#archive-status")).toContainText("已删除");
   await expect(page.locator("#archives .archive-row")).toHaveCount(0);

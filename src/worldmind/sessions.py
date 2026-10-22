@@ -48,6 +48,22 @@ class Session:
         self.engine, self.replay_result, self.recording = engine, result, recording
         self.revision += 1
 
+    def resume_replay(self):
+        """Fork the already verified cursor into a paused live continuation.
+
+        Engine.trace contains only the verified prefix, including active craft,
+        evidence timestamps, budgets and merchant state. Keep its protocol; a
+        version relabel would invalidate the prefix hashes. The source archive
+        and the original recording are never modified.
+        """
+        if self.recording is None:
+            raise SessionError(409, "import_recording_first")
+        self.running = False
+        self.epoch += 1
+        self.recording = self.replay_result = None
+        self.model_status = {"status": "idle", "usage": None}
+        self.revision += 1
+
 
 class SessionRegistry:
     def __init__(self, *, max_sessions=16, creation_limit=30, ttl=3600, clock=time.monotonic):

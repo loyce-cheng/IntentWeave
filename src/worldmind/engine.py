@@ -12,8 +12,8 @@ from .domain import (Action, Config, GOALS, INITIAL_STOCK, PLACES, ROADS, VERSIO
                      State, StrictModel, complete, dependencies, digest, transition)
 from .planner import Budget, Context
 from . import planner
-from .compat import planner_v01
-from .version import LEGACY_RECORDING_VERSION, SUPPORTED_RECORDING_VERSIONS
+from .compat import planner_v01, planner_v02
+from .version import LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION, SUPPORTED_RECORDING_VERSIONS
 
 
 class Command(StrictModel):
@@ -43,7 +43,8 @@ class Engine:
         if version not in SUPPORTED_RECORDING_VERSIONS:
             raise ValueError("unsupported recording version")
         self.version = version
-        self._planner = planner_v01 if version == LEGACY_RECORDING_VERSION else planner
+        self._planner = {LEGACY_RECORDING_VERSION: planner_v01,
+                         V02_RECORDING_VERSION: planner_v02}.get(version, planner)
         self.config = config or Config()
         self.world = State()
         self.tick = 0
@@ -63,6 +64,7 @@ class Engine:
                             repairs=0, fallbacks=0, actions=0, consumed=0, produced=0)
         self.cpu_ms = 0.0
         self.last_repair: dict = {}
+        self.observation_attempts: set[str] = set()
         # Scenario-granted, dated delivery briefing; independent of actual hidden state.
         for r in ROADS:
             self._evidence("road:" + r, True, "briefing")
@@ -99,15 +101,21 @@ class Engine:
                       stock=tuple(value("stock:" + p) for p in PLACES),
                       roads=tuple(value("road:" + r) for r in ROADS),
                       delivered=self.world.delivered)
-        return Context(known, self.goal, self.tick,
+        context = self._planner.Context(known, self.goal, self.tick,
                        {k: v["valid_until"] for k, v in self.evidence.items()},
                        self.knowledge_version, self.goal_version)
+        if self._planner is planner:
+            context.last_values = {k: v["value"] for k, v in self.evidence.items()}
+        return context
 
     def actor_view(self) -> dict:
-        return {"schema_version": self.version, "actor_id": "courier",
+        view = {"schema_version": self.version, "actor_id": "courier",
                 "context": asdict(self.context()), "evidence": deepcopy(self.evidence),
                 "plan": [a.model_dump() for a in self.plan], "plan_version": self.plan_version,
                 "generation": self.generation, "active": deepcopy(self.active)}
+        if self._planner is planner:
+            view["observation_attempts"] = sorted(self.observation_attempts)
+        return view
 
     def request_context(self) -> dict:
         # Stable public map, not true road states. No event seq/hash or merchant state.
@@ -132,7 +140,21 @@ class Engine:
     def _plan(self):
         budget = self._budget()
         start = process_time_ns()
-        result = self._planner.decide(self.context(), self.plan, self.config.policy, budget)
+        context = self.context()
+        result = self._planner.decide(context, self.plan, self.config.policy, budget)
+        if self._planner is planner and result.outcome == "observe":
+            # Re-reading unchanged facts is not new information. Stop repeated
+            # observation routes after returning to the same actor-known state.
+            # Neither privileged world state nor merely newer timestamps can
+            # trigger/clear this guard; unknown is not a proof of impossibility.
+            attempt = digest({"state": asdict(context.state), "goal": context.goal,
+                              "goal_version": context.goal_version,
+                              "last_values": context.last_values,
+                              "plan": [a.model_dump() for a in result.plan]})
+            if attempt in self.observation_attempts:
+                result = planner.Decision([], "unknown", "observation_cycle_without_progress", len(self.plan))
+            else:
+                self.observation_attempts.add(attempt)
         self.cpu_ms += (process_time_ns() - start) / 1e6
         self._charge(budget)
         if result.outcome != "retained":
@@ -156,6 +178,7 @@ class Engine:
         self.plan = []
         self.plan_version += 1
         self.generation += 1
+        self.observation_attempts.clear()
 
     def _execute(self, a: Action):
         # Same action model, authoritative state. Contact failures refresh only local evidence.
@@ -299,7 +322,7 @@ class ReplayStep(StrictModel):
 
 
 class Recording(StrictModel):
-    schema_version: Literal["worldmind-0.1.0/river-1", "worldmind-0.2.0/river-1"]
+    schema_version: Literal["worldmind-0.1.0/river-1", "worldmind-0.2.0/river-1", "worldmind-0.2.1/river-1"]
     config: Config
     initial_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     steps: list[ReplayStep] = Field(max_length=1500)

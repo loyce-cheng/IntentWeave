@@ -100,7 +100,7 @@ async def test_concurrent_mutations_have_one_writer(tmp_path):
         assert (await client.get(path, headers=headers)).json()["tick"] == 1
 
 
-@pytest.mark.parametrize("intervention", ["goal", "reset", "cancel", "hidden"])
+@pytest.mark.parametrize("intervention", ["goal", "reset", "cancel", "hidden", "resume"])
 async def test_late_model_response_lifecycle(intervention, tmp_path):
     began, release = asyncio.Event(), asyncio.Event()
     async def handler(req):
@@ -121,6 +121,14 @@ async def test_late_model_response_lifecycle(intervention, tmp_path):
         assert barrier.status_code == 409
         if intervention == "reset":
             await c.post(path + "/control", headers=h, json={"operation": "reset"})
+        elif intervention == "resume":
+            # Identical actor context still belongs to a different live branch.
+            imported = await c.post(path + "/import", headers=h,
+                                    json={"recording": Engine().export()})
+            resumed = await c.post(path + "/resume", headers=h, json={
+                "command_id": "resume", "expected_revision": imported.json()["revision"]})
+            assert resumed.status_code == 200
+            assert resumed.json()["state_hash"] == Engine().state_hash()
         else:
             command = {"kind": "goal", "target": "herb_clinic"} if intervention == "goal" else (
                 {"kind": "cancel"} if intervention == "cancel" else {"kind": "block", "target": "bridge|home"})
