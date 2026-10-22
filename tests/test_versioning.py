@@ -28,7 +28,7 @@ def test_original_v01_recordings_and_every_cursor(path):
 
 
 def test_v02_protocol_and_relabelled_legacy_are_distinct():
-    assert __version__ == "0.2.0" and "0.2.0" in VERSION
+    assert __version__ == "0.2.1" and "0.2.1" in VERSION
     engine = Engine()
     engine.apply(Command(kind="step"))
     assert replay(engine.export())[0].state_hash() == engine.state_hash()
@@ -38,3 +38,19 @@ def test_v02_protocol_and_relabelled_legacy_are_distinct():
         replay(old)
     with pytest.raises(ValueError, match="unsupported recording version"):
         Engine(version="worldmind-99.0/river-1")
+
+
+V02_RECORDINGS = sorted((Path(__file__).parents[1] / "docs/evidence/v0.2/recordings").glob("worldmind-0.2.0-*.json"))
+
+
+@pytest.mark.parametrize("path", V02_RECORDINGS, ids=lambda p: p.stem)
+def test_original_v02_recordings_and_every_cursor(path):
+    original = path.read_bytes()
+    data = json.loads(original)
+    engine, result = replay(data)
+    assert result["complete"] and engine.export() == data
+    for cursor in range(len(data["steps"]) + 1):
+        partial, checked = replay(data, cursor)
+        assert checked["verified"] == cursor
+        assert partial.version == data["schema_version"]
+    assert path.read_bytes() == original

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from worldmind.domain import Config, ROADS
 from worldmind.engine import Command, Engine, replay
-from worldmind.version import LEGACY_RECORDING_VERSION, RECORDING_VERSION
+from worldmind.version import LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION
 
 CASES = {
     "normal": ({}, []),
@@ -32,7 +32,7 @@ def run(output: Path) -> dict:
     recordings = output / "recordings"
     recordings.mkdir(parents=True, exist_ok=True)
     results = []
-    for version in (LEGACY_RECORDING_VERSION, RECORDING_VERSION):
+    for version in (LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION):
         for case, (overrides, schedule) in CASES.items():
             for policy in ("Full", "Local"):
                 engine = Engine(Config(policy=policy, **overrides), version=version)

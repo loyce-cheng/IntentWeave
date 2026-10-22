@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-23 Asia/Shanghai",
+  "base_commit": "dc89e42",
+  "application_version": "0.2.1",
+  "backend": {
+    "passed": 318,
+    "warnings": 19,
+    "statement_coverage_percent": 91.34860050890585,
+    "covered_statements": 1795,
+    "total_statements": 1965,
+    "duration_seconds": 26.317
+  },
+  "frontend": {
+    "format_check": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": {
+      "startTime": "2026-10-22T20:34:00.975Z",
+      "duration": 27296.367000000002,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "browser_executable": "/usr/bin/chromium"
+  },
+  "compatibility": {
+    "v01_recordings": 14,
+    "v02_recordings": 18,
+    "every_cursor_verified": true,
+    "old_recordings_modified": false
+  },
+  "comparison": {
+    "cases": 16,
+    "versions": 2,
+    "policies": 2,
+    "replay_verified_recordings": 64,
+    "technical_timing_repeats": 5,
+    "intervention_pairs": 120,
+    "local_budget_regressions": 0,
+    "status_mismatches": 0,
+    "statistical_claim": false
+  },
+  "cli": {
+    "installed_version": "0.2.1",
+    "run": "success",
+    "replay_verified_steps": 12
+  },
+  "models": "protocol simulation only; no live or paid calls",
+  "verified_source_sha256": {
+    "pyproject.toml": "0d930e980f54237810a92d97311aac5a5f7f71813abd08db32b885d7e536bb21",
+    "requirements-lock.txt": "1ce03b636afebb09fe2ba6501aea073622399dc29e8c06029ef729163955cc1f",
+    "scripts/benchmark_v02.py": "b23e1eebfa3b08096d180c21876f999d2a6214bc1fdca302c49156a41c546cbd",
+    "scripts/benchmark_v021.py": "10e3c9d1738bff8765be4125ff6221a9b471a7fba4ea91a25cd5dac39f4a4911",
+    "scripts/evaluate.py": "295181967537574eec7e983dde957d5c743a19cdfc828bfe35e7b4b4db82dc78",
+    "src/worldmind/__init__.py": "99cbb40fa8a632a571ae7980e052efa7fb18a493385f82b08146f192c3535069",
+    "src/worldmind/api.py": "f60ed7804baaa5fe8e7a9fd96c3beb5d2364023c2066f51bbaef6a568f55e925",
+    "src/worldmind/archives.py": "0c5ac2b0fd5fd71a1042e4a5e739d1eae073430aff7d83afacf362ec6320b916",
+    "src/worldmind/cli.py": "2968fbe6b1271c0f2aaa0fe14c851354de6646a1456e9df0bab398582da084c3",
+    "src/worldmind/compat/__init__.py": "f1ed2febb2cbe95b2b5b871d9966bb518541f7ad331dbd7181a411d1c918107a",
+    "src/worldmind/compat/planner_v01.py": "c1decb400f43b2698cc5150d3946ac5013909064a7cc9cefd629f22e3498922f",
+    "src/worldmind/compat/planner_v02.py": "d3df05336e4b6dd0e5d7d9112a4b043646d87e25c0c50af4ef826a398a51b249",
+    "src/worldmind/domain.py": "76141260ce5d2dfb57afb8c4b67b7f5097429db2ff639106e8374579cda7b68f",
+    "src/worldmind/engine.py": "38d9427ebc7837e9f15363601bae99c40d82dec0bdec280832f653ad38245566",
+    "src/worldmind/models.py": "30ec9e8c04a816f10fc579df1fbae5f5ed8fc4a057730f90512e8d53686675b7",
+    "src/worldmind/planner.py": "eb90678fb7c9e55af7c79f56438f014ddb9d8b85a1080bb4f19a43b1c4ddec6a",
+    "src/worldmind/providers.py": "5ab567ee92b54016723fc8fee28d0a719d357ce01d62fe995732d18fa5c1584c",
+    "src/worldmind/sdk.py": "a33903d909ab7415be1688ff028e247007fcb6a29ca14b2724b86718d74710cb",
+    "src/worldmind/sessions.py": "3c766ef2c0fac624d571378211d0cc9b524ff358c9285bb4a3ad257b3e82516e",
+    "src/worldmind/version.py": "8a4192db33a1a5fda4c18d49c9005f5161b8eafd41ae7baf788919da1fbfff5c",
+    "tests/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "tests/test_api.py": "55781b51369a3f832561e3a259217fee92e6c913258e348924c4fa4c69c7d42d",
+    "tests/test_archive_api.py": "efc284032766838d7dbe01e4e1570d9f9213d1e6379649104e4a93765961ed22",
+    "tests/test_archives.py": "67251e82cfa57c393824ef1bf06d29947f955f24b961860affe4a067cee1f2fe",
+    "tests/test_engine.py": "fd5b80e232213c5a4a918fad2b302601f5f160be2504ab0d6495946ee51589fb",
+    "tests/test_models.py": "a9dcfbaad552cc2f30d5cad3e8ead956ce7815f55d3e93b08d1e4f44f37d3958",
+    "tests/test_planner_v02.py": "7e7d16df8e05703e4df1b2025e46894ca5d67bdd7ae25e8f08aa8b412b82afe8",
+    "tests/test_planner_v021.py": "516bd3792a2d004e4bd691eaae6f1cb5091f37d4acf93a58e7386b38d68b4af6",
+    "tests/test_resume.py": "b9ef366b6dd3a5fb046846ebc08dfafb2d530edf7a56c60514b250eba76d8984",
+    "tests/test_sdk.py": "a33c22a551a614802a0ea084c897b66c7e16d03b2bbd58ab93cb12fee809a4bc",
+    "tests/test_session_lifecycle.py": "2745cf24ebffbfdd02e91b15e6b1b181287e1dbc0100f387e1f6da8ec9177e23",
+    "tests/test_versioning.py": "a143ec9bbcf6b87232c282f7323965e54d529507a51554292c5ceef568d7eaeb",
+    "web/e2e/demo.spec.ts": "5e91926927407be000a2732e1155cd61284ad692512b8e09f9f6ab2e26d587c3",
+    "web/package-lock.json": "106403a800b80ebec37b870bf2dac130503e0fe6c5b23f7827a12896640a0761",
+    "web/playwright.config.ts": "b6ab6e37636d3324624deda433a22135c3cc59c397348d0a70c28521378c48fd",
+    "web/src/api.ts": "a98b8a15c69f666915328afe0ae0fb22f427492572c8beb33bc78cb60986dc53",
+    "web/src/archives.ts": "6f55fdac78883e5afb27f2645e5202055d8536b4c43f709ce3f9284b0de08b24",
+    "web/src/main.ts": "8620699af0e6ef76453675dea8404c672c0b81e3b2a39b16740f4a937bb5840d",
+    "web/src/style.css": "6487c67315119db4e4c17b700790300f2c55509c66b53f4275e8cf197477bd9b",
+    "web/vite.config.ts": "09cc91cf63f3bb34a74c019a0be4cb7c9591c51ba9fcb89c6710a6a68c3d29ee"
+  }
+}

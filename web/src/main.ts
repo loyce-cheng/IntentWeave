@@ -157,11 +157,11 @@ $("app").innerHTML = `
   </div>
   <section class="panel lower"><div class="panel-head"><div><span class="index">05</span><h2>对照与验证</h2></div><button id="compare">运行 Full / Local 对照</button></div><p class="muted">从相同初态开始，在 tick 1 阻断东桥。相同动作、搜索器和总预算；局部修复可能花费更多。</p><div id="comparison" class="comparison"><div class="empty">运行一次对照，让结果回答问题。</div></div>
     <div class="replay-controls"><button id="export">↓ 导出当前记录</button><label class="file-button">↑ 导入并验证<input id="import" type="file" accept=".json,application/json" /></label><span id="replay-status">同版本输入重执行 · 每步状态及事件哈希检查</span></div>
-    <div id="replay-controls" hidden><button id="replay-start">回放起点</button><button id="replay-next">校验下一步 →</button><label>记录位置 <input id="cursor" type="range" min="0" value="0" /></label></div>
+    <div id="replay-controls" hidden><button id="replay-start">回放起点</button><button id="replay-next">校验下一步 →</button><label>记录位置 <input id="cursor" type="range" min="0" value="0" /></label><button id="replay-resume" class="primary">从此处继续</button><span class="muted">创建可执行分支，保留原存档与记录版本。</span></div>
   </section>
   <section class="panel lower" aria-label="持久回放存档"><div class="panel-head"><div><span class="index">06</span><h2>回放存档</h2></div><span class="badge">服务重启后可恢复</span></div>
     <div class="archive-controls"><label>存档名称<input id="archive-name" maxlength="80" placeholder="例如：断桥后的送药记录" /></label><button id="archive-save">保存当前回放</button></div>
-    <p class="muted">存档保留 7 天，恢复后为只读回放。此浏览器保存访问凭据；清除浏览器数据会丢失入口。请导出 JSON 作为长期或跨设备备份。</p>
+    <p class="muted">存档保留 7 天。恢复并验证后，可选择任意记录位置，点击“从此处继续”续跑，再单步或运行。此浏览器保存访问凭据；清除浏览器数据会丢失入口。请导出 JSON 作为长期或跨设备备份。</p>
     <div id="archive-status" class="muted" role="status"></div><div id="archives" class="archive-list"></div>
   </section>
   <section class="panel lower"><div class="panel-head"><div><span class="index">07</span><h2>可选模型提议</h2></div><span id="model-enabled" class="badge"></span></div><p class="muted">模型只接收角色认知。提议需通过语法、语义和当前版本检查。密钥仅由服务端配置。</p><div class="model-controls"><label>服务配置<select id="provider"></select></label><label>演示访问口令<input id="model-access" type="password" autocomplete="off" placeholder="不是供应商 API Key" /></label><button id="model-propose">请求一次提议</button><button id="model-cancel">取消请求</button></div><div id="model-status" class="muted"></div></section>
@@ -431,6 +431,7 @@ function renderControls() {
     "export",
     "replay-start",
     "replay-next",
+    "replay-resume",
     "model-cancel",
   ])
     $<HTMLButtonElement>(id).disabled = busy;
@@ -497,7 +498,7 @@ function renderArchives() {
           headers: { "X-Archive-Token": archive.token },
         });
         $("archive-status").textContent =
-          `已验证并恢复“${archive.name}”，当前为只读回放。`;
+          `已验证并恢复“${archive.name}”。可回放查看，或点击“从此处继续”续跑。`;
       });
   }
   for (const button of Array.from(
@@ -626,6 +627,18 @@ async function init() {
       $<HTMLInputElement>("import").value = "";
     });
   $("replay-start").onclick = () => perform(() => seek(0));
+  $("replay-resume").onclick = () =>
+    perform(async () => {
+      await updateView(spath() + "/resume", {
+        method: "POST",
+        body: JSON.stringify({
+          command_id: crypto.randomUUID(),
+          expected_revision: view.revision,
+        }),
+      });
+      $("archive-status").textContent =
+        "已从当前记录位置创建可执行分支，现为暂停状态。可单步、运行或改变目标；原存档保持不变。";
+    });
   $("replay-next").onclick = () =>
     perform(() =>
       seek(Math.min(view.replay!.total, view.replay!.verified + 1)),

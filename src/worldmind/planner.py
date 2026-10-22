@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 from .domain import Action, GOALS, PLACES, ROADS, State, candidates, complete, dependencies, road, transition
@@ -34,6 +34,9 @@ class Context:
     expires: dict[str, int]
     knowledge_version: int
     goal_version: int
+    # Remembered observations rank exploratory routes only. They never turn an
+    # expired fact back into a known precondition or extend its validity.
+    last_values: dict[str, int | bool] = field(default_factory=dict)
 
 
 def validate(ctx: Context, plan: list[Action], budget: Budget,
@@ -79,18 +82,77 @@ def search(s: State, goal: str, budget: Budget,
     return None
 
 
+def observation_prefix(ctx: Context, path: list[Action], index: int,
+                       budget: Budget) -> list[Action]:
+    """The caller has certified path[:index]; never install its hypothetical tail."""
+    prefix, state = path[:index], ctx.state
+    for action in prefix:
+        state = transition(state, action, ctx.goal)
+    budget.spend()  # certify the local inspection appended to the checked prefix
+    return prefix + [Action(kind="inspect", target=state.location)]
+
+
+def known_goal_possible(ctx: Context, budget: Budget) -> bool:
+    """Necessary reachability/resource test shared by Full and Local.
+
+    Each visited map node is charged. False only rules out a plan in the current
+    belief; unknown roads/stock still warrant goal-directed observation.
+    """
+    # The static river map is connected. With every edge known open there is
+    # no graph traversal to do (nor any graph expansion to charge).
+    connected = all(value is True for value in ctx.state.roads)
+    reached = set(PLACES) if connected else {ctx.state.location}
+    queue = deque([] if connected else [ctx.state.location])
+    while queue:
+        place = queue.popleft()
+        budget.spend("expansions")
+        for i, key in enumerate(ROADS):
+            ends = key.split("|")
+            if place in ends and ctx.state.roads[i] is True:
+                other = ends[1] if ends[0] == place else ends[0]
+                if other not in reached:
+                    reached.add(other)
+                    queue.append(other)
+    destination, item = GOALS[ctx.goal]
+    has_herb = ctx.state.herb > 0 or any(
+        p in reached and qty is not None and qty > 0
+        for p, qty in zip(PLACES, ctx.state.stock))
+    return complete(ctx.state, ctx.goal) or (destination in reached and (
+        has_herb if item == "herb" else
+        ctx.state.medicine > 0 or (has_herb and "workshop" in reached)))
+
+
 def explore(ctx: Context, budget: Budget) -> list[Action] | None:
-    """Reach a known frontier then inspect; never predict an unknown observation."""
-    def frontier(s: State, path: list[Action]) -> bool:
-        budget.spend()
-        return s.stock[PLACES.index(s.location)] is None or any(
-            s.location in key.split("|") and s.roads[i] is None for i, key in enumerate(ROADS))
-    path = search(ctx.state, ctx.goal, budget, frontier)
-    if path is not None:
-        end = ctx.state
-        for a in path:
-            end = transition(end, a, ctx.goal)
-        return path + [Action(kind="inspect", target=end.location)]
+    """Select useful observations using an explicitly hypothetical goal route.
+
+    Unknowns may guide *where to inspect*, never an executable action. Validate
+    against the unchanged real belief and stop BEFORE the first unknown/expired
+    dependency. Known false roads and empty stocks are never relaxed. Unlike the
+    old nearest-unknown rule, expired irrelevant stocks cannot distract a courier
+    already carrying medicine from reaching the patient.
+    """
+    optimistic_roads = tuple(True if v is None else v for v in ctx.state.roads)
+    cautious_roads = tuple(ctx.last_values.get("road:" + key) is not False if v is None else v
+                           for key, v in zip(ROADS, ctx.state.roads))
+    remembered_stock = tuple((1 if ctx.last_values.get("stock:" + place, 1) > 0 else 0)
+                             if v is None else v for place, v in zip(PLACES, ctx.state.stock))
+    optimistic_stock = tuple(1 if v is None else v for v in ctx.state.stock)
+    # Fresh sources first, then remembered sources, then other unknown sources.
+    # Prefer routes avoiding a previously observed closure; if those fail, also
+    # inspect that route. Expired negative evidence must not prove impossibility.
+    tried = set()
+    for roads, stock in ((cautious_roads, ctx.state.stock),
+                         (cautious_roads, remembered_stock),
+                         (cautious_roads, optimistic_stock),
+                         (optimistic_roads, optimistic_stock)):
+        hypothetical = replace(ctx.state, roads=roads, stock=stock)
+        if hypothetical == ctx.state or hypothetical in tried:
+            continue
+        tried.add(hypothetical)
+        path = search(hypothetical, ctx.goal, budget)
+        if path is not None:
+            valid, index, _ = validate(ctx, path, budget)
+            return path if valid else observation_prefix(ctx, path, index, budget)
     return None
 
 
@@ -185,64 +247,87 @@ def suffix_boundary(ctx: Context, suffix: list[Action], budget: Budget) -> Bound
                     not (delivered or barrier), possible)
 
 
+def repair_or_full(ctx: Context, previous: list[Action], dirty: int,
+                   budget: Budget) -> tuple[list[Action] | None, int | None]:
+    """Probe suffixes on ONE BFS frontier, then continue it as Full on failure.
+
+    Boundary construction and failed splice checks share a quarter-budget cap.
+    Expansions are never repeated at another window or when falling back. A full
+    solution found along the way wins immediately. Final splice validation still
+    checks all resources, time and evidence, including the new patch.
+    """
+    local_end = budget.used + (budget.limit - budget.used) // 4
+    boundaries = []
+    original_limit = budget.limit
+    try:
+        budget.limit = local_end
+        for r in sorted({min(len(previous), dirty + 1),
+                         min(len(previous), dirty + 3)}, reverse=True):
+            suffix = previous[r:]
+            if suffix:
+                boundary = suffix_boundary(ctx, suffix, budget)
+                if boundary.possible:
+                    boundaries.append((r, suffix, boundary))
+    except Exhausted:
+        pass
+    finally:
+        budget.limit = original_limit
+    chosen = None
+
+    def accept(state, path):
+        nonlocal chosen
+        if complete(state, ctx.goal):
+            return True
+        if budget.used >= local_end:
+            return False
+        for r, suffix, boundary in boundaries:
+            if len(path) + len(suffix) > 30 or not boundary.accepts(state, ctx.goal):
+                continue
+            try:
+                budget.limit = local_end
+                valid, _, _ = validate(ctx, path + suffix, budget)
+            except Exhausted:
+                return False
+            finally:
+                budget.limit = original_limit
+            if valid:
+                chosen = r
+                return True
+        return False
+
+    path = search(ctx.state, ctx.goal, budget, accept)
+    return (path + previous[chosen:] if chosen is not None else path), chosen
+
+
 def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) -> Decision:
-    result = Decision()
+    reason, dirty = "", 0
     try:
         if previous:
             valid, dirty, reason = validate(ctx, previous, budget)
             if valid:
                 return Decision(previous, "retained", reason, retained=len(previous))
-            result.reason = reason
-            if policy == "Local":
-                # Replace [0,r): completed actions are outside the remaining plan.
-                # Cheap necessary entry constraints gate the costly whole splice check.
-                local_end = min(budget.limit, budget.used + max(1, (budget.limit-budget.used)//4))
-                for r in sorted(set([min(len(previous), dirty + 1),
-                                     min(len(previous), dirty + 3), len(previous)])):
-                    suffix = previous[r:]
-                    # An empty suffix is Full, not a useful extra Local attempt.
-                    if not suffix:
-                        continue
-                    if budget.used >= local_end:
-                        break
-                    original_limit = budget.limit
-                    try:
-                        budget.limit = local_end
-                        boundary = suffix_boundary(ctx, suffix, budget)
-                        if not boundary.possible:
-                            continue
-
-                        def accept(s, path):
-                            if not boundary.accepts(s, ctx.goal):
-                                return False
-                            ok, _, _ = validate(ctx, path + suffix, budget)
-                            return ok
-
-                        patch = search(ctx.state, ctx.goal, budget, accept,
-                                       local_end - budget.used, max_depth=30-len(suffix))
-                    except Exhausted:
-                        patch = None
-                    finally:
-                        budget.limit = original_limit
-                    if patch is not None:
-                        return Decision(patch + suffix, "patched", reason, r, len(suffix), [0, r])
-                result.outcome = "fallback_full"
-        path = search(ctx.state, ctx.goal, budget)
+            if reason.startswith("evidence_expired:"):
+                # Keep the certified progress; repair cannot make evidence fresher.
+                return Decision(observation_prefix(ctx, previous, dirty, budget),
+                                "observe", reason, len(previous))
+        path, cut = None, None
+        if known_goal_possible(ctx, budget):
+            if previous and policy == "Local":
+                path, cut = repair_or_full(ctx, previous, dirty, budget)
+            else:
+                path = search(ctx.state, ctx.goal, budget)
+        if cut is not None:
+            return Decision(path, "patched", reason, cut, len(previous) - cut, [0, cut])
         if path is not None:
-            valid, index, reason = validate(ctx, path, budget)
+            valid, index, validation_reason = validate(ctx, path, budget)
             if valid:
                 return Decision(path, "fallback_full" if previous and policy == "Local" else "full",
-                                result.reason or reason, len(previous))
-            # Expiring remote evidence: certify only a prefix up to an observation.
-            prefix = path[:index]
-            s = ctx.state
-            for a in prefix:
-                s = transition(s, a, ctx.goal)
-            return Decision(prefix + [Action(kind="inspect", target=s.location)],
-                            "observe", reason, len(previous))
+                                reason or validation_reason, len(previous))
+            return Decision(observation_prefix(ctx, path, index, budget),
+                            "observe", validation_reason, len(previous))
         observation = explore(ctx, budget)
         if observation:
-            return Decision(observation, "observe", "unknown facts", len(previous))
+            return Decision(observation, "observe", "goal-directed observation", len(previous))
         return Decision([], "unknown", "no_plan_in_current_belief", len(previous))
     except Exhausted:
         return Decision([], "budget_exhausted", "shared decision budget exhausted", len(previous))

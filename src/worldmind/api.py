@@ -52,9 +52,12 @@ async def computation(fn, *args):
     return result
 
 
-class Mutation(StrictModel):
+class RevisionRequest(StrictModel):
     command_id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     expected_revision: int = Field(ge=0)
+
+
+class Mutation(RevisionRequest):
     command: Command
 
 
@@ -326,6 +329,24 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
                     raise HTTPException(422, str(error)) from None
             s.revision += 1
             return s.view()
+
+    @app.post("/api/sessions/{sid}/resume")
+    async def resume(req: RevisionRequest, s: Session = Depends(session)):
+        async with s.lock:
+            fingerprint = digest({"operation": "resume", **req.model_dump()})
+            if req.command_id in s.receipts:
+                old, view = s.receipts[req.command_id]
+                if old != fingerprint:
+                    raise HTTPException(409, "command_id_reused")
+                return view
+            if len(s.receipts) >= 1500:
+                raise HTTPException(409, "command_limit")
+            if req.expected_revision != s.revision:
+                raise HTTPException(409, "revision_conflict")
+            s.resume_replay()
+            view = s.view()
+            s.receipts[req.command_id] = (fingerprint, view)
+            return view
 
     @app.post("/api/sessions/{sid}/compare")
     async def paired(s: Session = Depends(session)):

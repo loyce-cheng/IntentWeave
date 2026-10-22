@@ -1,4 +1,4 @@
-# Python SDK（0.2）
+# Python SDK（0.2.1）
 
 `worldmind.sdk` 是本地 Worldmind HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 README 安装包、构建页面并启动 FastAPI；SDK 使用同一个 Python 环境，无需增加第三方依赖。
 
@@ -41,13 +41,16 @@ with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
     assert restored["mode"] == "verified_replay"
     another.seek(0)
     another.seek(1)
+    resumed = another.resume()  # 从已验证的第 1 条输入续跑，原存档不变
+    assert resumed["mode"] == "live_offline" and not resumed["running"]
+    another.step()
     another.delete()
     session.delete()
 ```
 
 `receipt` 是 `ArchiveReceipt`，包含 ID、访问凭证、名称、协议、创建/到期时间、字节数和输入步数。凭证不显示在 repr，但它仍是秘密：持有者可恢复或删除该存档。SDK 不自动保存回执；跨进程恢复须由调用者把完整回执保存在私有存储中。服务器不提供凭证找回。上例导出的普通回放 JSON 不包含凭证，适合手动导入与备份。
 
-删除活动会话不删除其存档。确定不再需要存档时，可调用 `client.delete_archive(receipt)`。存档默认 7 天到期；服务进程重启不影响尚在持久磁盘上的有效存档。恢复是只读校验回放，不是从中间步骤续跑；调用 `control("reset")` 才会开始当前版本的新模拟。
+删除活动会话不删除其存档。确定不再需要存档时，可调用 `client.delete_archive(receipt)`。存档默认 7 天到期；服务进程重启不影响尚在持久磁盘上的有效存档。恢复先进入只读校验回放；`seek(n)` 后调用 `resume()` 可从第 n 条输入续跑。原存档不会改变，导出只包含已选择的前缀和后续新输入。续跑保留原协议、证据时间、消耗预算、商人状态和制药进度，不会重新消费材料；恢复后仍暂停，需显式 `step()` 或 `control("run")`。已完成、取消、预算耗尽等终态不会被续跑解除；修改目标可开启新的任务尝试，但不补充预算。`control("reset")` 开始当前版本的新模拟。
 
 ## 接口
 
@@ -64,6 +67,7 @@ with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
 | `session.export()` | 返回完整回放字典；不写文件 |
 | `session.import_recording(recording)` | 完整校验成功后进入只读回放 |
 | `session.seek(until)` | 重新校验到指定输入位置，0 表示初态 |
+| `session.resume(command_id=None, expected_revision=None)` | 将已验证游标转为暂停的可执行分支，支持显式幂等重试 |
 | `session.save_archive(name)` | 验证并持久保存，返回私密回执 |
 | `session.restore_archive(receipt)` | 使用独立存档凭证恢复只读回放 |
 | `client.delete_archive(receipt)` | 删除对应服务端存档 |
@@ -73,7 +77,7 @@ with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
 
 ## 冲突与显式重试
 
-`command()` 未提供 `expected_revision` 时，会先读取当前 revision，再提交一次。并发操作仍可能发生在这两步之间；HTTP 409 通过 `SDKError` 返回，SDK 不会自动用新 revision 重试。
+`command()` / `resume()` 未提供 `expected_revision` 时，会先读取当前 revision，再提交一次。并发操作仍可能发生在这两步之间；HTTP 409 通过 `SDKError` 返回，SDK 不会自动用新 revision 重试。
 
 当网络异常导致一次写入结果不确定时，只有保留原请求的 `command_id` 和 `expected_revision` 才能显式重试，利用服务端幂等回执：
 
@@ -92,7 +96,7 @@ except SDKError as error:
     #                          expected_revision=revision)
 ```
 
-同 ID 同内容返回原回执；同 ID 异内容拒绝。409 可能表示 revision 冲突、只读回放或其他状态限制，不能一概当作网络失败。控制、导入和存档操作没有命令幂等 ID，不能照搬上述重试方式。
+同 ID 同内容返回原回执；同 ID 异内容拒绝。409 可能表示 revision 冲突、只读回放或其他状态限制，不能一概当作网络失败。`resume()` 同样支持上述两个参数，但其 ID 不可与动作命令混用。控制、导入和存档操作没有命令幂等 ID，不能照搬上述重试方式。
 
 ## 超时、错误与测试客户端
 
