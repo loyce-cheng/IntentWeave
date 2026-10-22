@@ -1,5 +1,7 @@
 # Worldmind v0.1 重建进度
 
+本文保留 0.1 历史交付。当前工作见 [0.2 升级进度](UPGRADE_V02.md) 和 [0.2 验证报告](TEST_REPORT_V02.md)。
+
 本轮从 `fa1638a589d1d1e505bfa52f88c0ad63a2c64570` 的规划仓库重新实现。
 没有恢复旧实现、旧测试或旧提交。开发分支：`codex/rebuild-v0.1`。
 
