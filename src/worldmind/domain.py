@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-VERSION = "worldmind-0.1.0/river-1"
+from .version import RECORDING_VERSION as VERSION
 PLACES = ("clinic", "warehouse", "garden", "workshop", "bridge", "ferry", "home")
 LABELS = dict(zip(PLACES, ("诊所", "仓库", "药圃", "工坊", "东桥", "渡口", "患者住处")))
 EDGES = (

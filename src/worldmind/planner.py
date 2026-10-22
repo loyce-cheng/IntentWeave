@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable
 
-from .domain import Action, PLACES, ROADS, State, candidates, complete, dependencies, transition
+from .domain import Action, GOALS, PLACES, ROADS, State, candidates, complete, dependencies, road, transition
 
 
 class Exhausted(Exception):
@@ -57,7 +57,7 @@ def validate(ctx: Context, plan: list[Action], budget: Budget,
 
 def search(s: State, goal: str, budget: Budget,
            accept: Callable[[State, list[Action]], bool] | None = None,
-           cap: int | None = None) -> list[Action] | None:
+           cap: int | None = None, max_depth: int = 30) -> list[Action] | None:
     """Shared searcher. cap limits only local attempts within the SAME budget."""
     queue = deque([(s, [])])
     seen = {s}
@@ -67,7 +67,7 @@ def search(s: State, goal: str, budget: Budget,
         budget.spend("expansions")
         if accept(current, path) if accept else complete(current, goal):
             return path
-        if len(path) >= 30:
+        if len(path) >= max_depth:
             continue
         for a in candidates(current):
             nxt = transition(current, a, goal)
@@ -104,6 +104,87 @@ class Decision:
     window: list[int] | None = None
 
 
+@dataclass(frozen=True)
+class Boundary:
+    """Necessary suffix-entry conditions, never a substitute for final validation.
+
+    This finite domain has no action that opens roads or replenishes remote stock.
+    Inventory can change in a patch, so constrain its *entry* value rather than
+    rejecting a repair because the current actor lacks an item.
+    """
+    locations: frozenset[str]
+    herb: tuple[int, int]
+    medicine: tuple[int, int]
+    stock: tuple[int, ...]
+    needs_completed_goal: bool
+    possible: bool = True
+
+    def accepts(self, state: State, goal: str) -> bool:
+        return (self.possible and state.location in self.locations
+                and self.herb[0] <= state.herb <= self.herb[1]
+                and self.medicine[0] <= state.medicine <= self.medicine[1]
+                and all(required == 0 or (qty is not None and qty >= required)
+                        for required, qty in zip(self.stock, state.stock))
+                and (not self.needs_completed_goal or complete(state, goal)))
+
+
+def suffix_boundary(ctx: Context, suffix: list[Action], budget: Budget) -> Boundary:
+    """Regress necessary location/resource conditions, charging each action read.
+
+    Temporal conditions intentionally remain in the full validator: a new patch
+    changes arrival times, and a passing gate never certifies fresh evidence.
+    """
+    locations, location = set(PLACES), None
+    hmin, hmax, mmin, mmax, dh, dm = 0, 2, 0, 2, 0, 0
+    stock = [0] * len(PLACES)
+    possible, delivered, barrier = True, False, False
+
+    def open_road(origin: str, target: str) -> bool:
+        key = road(origin, target)
+        return key in ROADS and ctx.state.roads[ROADS.index(key)] is True
+
+    for i, action in enumerate(suffix):
+        budget.spend()
+        if action.kind == "move":
+            if location is None:
+                locations.intersection_update(p for p in PLACES if open_road(p, action.target))
+            elif not open_road(location, action.target):
+                possible = False
+            location = action.target
+        else:
+            if action.target != "self":
+                if location is None:
+                    locations.intersection_update([action.target])
+                    location = action.target
+                elif location != action.target:
+                    possible = False
+            if action.kind == "take":
+                stock[PLACES.index(action.target)] += 1
+                hmax = min(hmax, 1 - dh)
+                dh += 1
+            elif action.kind == "craft":
+                possible &= action.target == "workshop"
+                hmin, mmax = max(hmin, 1 - dh), min(mmax, 1 - dm)
+                dh, dm = dh - 1, dm + 1
+            elif action.kind == "deliver":
+                destination, item = GOALS[ctx.goal]
+                possible &= action.target == destination
+                if item == "herb":
+                    hmin, dh = max(hmin, 1 - dh), dh - 1
+                else:
+                    mmin, dm = max(mmin, 1 - dm), dm - 1
+                delivered = True
+            elif action.kind == "inspect":
+                possible &= i == len(suffix) - 1
+                barrier = True
+    # No legal patch can replenish these stocks. Do not spend a search proving it.
+    possible &= all(required == 0 or (qty is not None and qty >= required)
+                    for required, qty in zip(stock, ctx.state.stock))
+    possible &= bool(locations) and hmin <= hmax and mmin <= mmax
+    return Boundary(frozenset(locations), (hmin, hmax), (mmin, mmax), tuple(stock),
+                    not (delivered or barrier), possible)
+
+
 def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) -> Decision:
     result = Decision()
     try:
@@ -114,23 +195,31 @@ def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) ->
             result.reason = reason
             if policy == "Local":
                 # Replace [0,r): completed actions are outside the remaining plan.
-                # Whole-suffix validation is charged for every proposed splice.
+                # Cheap necessary entry constraints gate the costly whole splice check.
                 local_end = min(budget.limit, budget.used + max(1, (budget.limit-budget.used)//4))
                 for r in sorted(set([min(len(previous), dirty + 1),
                                      min(len(previous), dirty + 3), len(previous)])):
                     suffix = previous[r:]
-                    allowance = local_end - budget.used
-                    if allowance <= 0:
+                    # An empty suffix is Full, not a useful extra Local attempt.
+                    if not suffix:
+                        continue
+                    if budget.used >= local_end:
                         break
-                    def accept(s, path):
-                        if budget.used >= local_end:
-                            return False
-                        ok, _, _ = validate(ctx, path + suffix, budget)
-                        return ok
                     original_limit = budget.limit
                     try:
                         budget.limit = local_end
-                        patch = search(ctx.state, ctx.goal, budget, accept, allowance)
+                        boundary = suffix_boundary(ctx, suffix, budget)
+                        if not boundary.possible:
+                            continue
+
+                        def accept(s, path):
+                            if not boundary.accepts(s, ctx.goal):
+                                return False
+                            ok, _, _ = validate(ctx, path + suffix, budget)
+                            return ok
+
+                        patch = search(ctx.state, ctx.goal, budget, accept,
+                                       local_end - budget.used, max_depth=30-len(suffix))
                     except Exhausted:
                         patch = None
                     finally:

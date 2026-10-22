@@ -4,11 +4,8 @@ from __future__ import annotations
 import asyncio
 import hmac
 import os
-import secrets
 import time
-from collections import deque
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -24,39 +21,35 @@ from .domain import Config, GOAL_LABELS, LABELS, PLACES, ROADS, StrictModel, VER
 from .engine import Command, Engine, Recording, compare, replay
 from .models import Ledger, ModelService
 from .providers import PROFILES, ProviderError, Settings
+from .archives import (ArchiveStore, ArchiveError, ArchiveNotFound, ArchiveCapacity,
+                       ArchiveCorrupt, ArchiveUnavailable)
+from .sessions import Session, SessionError, SessionRegistry
+from .version import __version__, SUPPORTED_RECORDING_VERSIONS
 
 
 async def computation(fn, *args):
     """Cancellation must not release the writer lock while its worker is still mutating."""
     task = asyncio.create_task(asyncio.to_thread(fn, *args))
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # Repeated cancellation must never propagate into the thread wrapper.
+            cancelled = True
+        except BaseException:
+            if cancelled:
+                raise asyncio.CancelledError from None
+            raise
     try:
-        return await asyncio.shield(task)
-    except asyncio.CancelledError:
-        await task
+        result = task.result()
+    except BaseException:
+        if cancelled:
+            raise asyncio.CancelledError from None
         raise
-
-
-@dataclass
-class Session:
-    engine: Engine
-    token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    revision: int = 0
-    epoch: int = 0
-    touched: float = field(default_factory=time.monotonic)
-    running: bool = False
-    runner: asyncio.Task | None = None
-    pending: asyncio.Task | None = None
-    model_requests: int = 0
-    receipts: dict = field(default_factory=dict)
-    model_status: dict = field(default_factory=lambda: {"status": "idle", "usage": None})
-    replay_result: dict | None = None
-    recording: dict | None = None
-
-    def view(self):
-        return {**self.engine.view(), "revision": self.revision, "running": self.running,
-                "model": self.model_status, "replay": self.replay_result,
-                "mode": "verified_replay" if self.recording else "live_offline"}
+    if cancelled:
+        raise asyncio.CancelledError
+    return result
 
 
 class Mutation(StrictModel):
@@ -81,7 +74,12 @@ class Cursor(StrictModel):
     until: int = Field(ge=0, le=1500)
 
 
-def create_app(*, ledger_path=None, model_service=None, model_access=None, settings_loader=None):
+class ArchiveName(StrictModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+def create_app(*, ledger_path=None, model_service=None, model_access=None, settings_loader=None,
+               archive_path=None, archive_store=None):
     path = ledger_path or os.getenv("WORLDMIND_LEDGER", "var/model-ledger.sqlite3")
     enabled = os.getenv("WORLDMIND_ENABLE_MODELS") == "1"
     access = model_access if model_access is not None else os.getenv("WORLDMIND_MODEL_ACCESS", "")
@@ -91,8 +89,10 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
         model_service = ModelService(Ledger(path, int(os.getenv("WORLDMIND_REQUEST_LIMIT", "100"))),
                                      enabled=enabled)
     settings_loader = settings_loader or Settings.from_env
-    sessions: dict[str, Session] = {}
-    creation_times = deque()
+    registry = SessionRegistry()
+    sessions = registry.sessions
+    archives = archive_store if archive_store is not None else ArchiveStore(
+        archive_path or os.getenv("WORLDMIND_ARCHIVES", "var/replay-archives.sqlite3"))
     cpu_slots = asyncio.Semaphore(4)
 
     @asynccontextmanager
@@ -107,8 +107,10 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
                     tasks.append(task)
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    app = FastAPI(title="Worldmind", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Worldmind", version=__version__, lifespan=lifespan)
     app.state.sessions = sessions
+    app.state.registry = registry
+    app.state.archives = archives
     app.state.models = model_service
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv(
         "WORLDMIND_HOSTS", "localhost,127.0.0.1,testserver").split(","))
@@ -144,51 +146,41 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     async def provider_error(request, exc):
         return JSONResponse({"detail": str(exc)}, status_code=409)
 
-    def session(sid: str, x_session_token: str = Header(default="")):
-        s = sessions.get(sid)
-        if not s or not hmac.compare_digest(s.token, x_session_token):
-            raise HTTPException(404, "session_not_found")
-        if time.monotonic() - s.touched > 3600:
-            s.running = False
-            if s.pending:
-                s.pending.cancel()
-            del sessions[sid]
-            raise HTTPException(410, "session_expired")
-        s.touched = time.monotonic()
-        return s
+    @app.exception_handler(SessionError)
+    async def session_error(request, exc):
+        return JSONResponse({"detail": exc.code}, status_code=exc.status)
+
+    @app.exception_handler(ArchiveError)
+    async def archive_error(request, exc):
+        status = (404 if isinstance(exc, ArchiveNotFound) else
+                  429 if isinstance(exc, ArchiveCapacity) else
+                  503 if isinstance(exc, ArchiveUnavailable) else
+                  409 if isinstance(exc, ArchiveCorrupt) else 422)
+        return JSONResponse({"detail": str(exc)}, status_code=status)
+
+    async def session(sid: str, x_session_token: str = Header(default="")):
+        return registry.get(sid, x_session_token)
 
     def model_permission(x_model_access: str = Header(default="")):
-        if not access or not hmac.compare_digest(access, x_model_access):
+        if not access or not hmac.compare_digest(access.encode("utf-8"), x_model_access.encode("utf-8")):
             raise HTTPException(403, "model_access_required")
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": VERSION, "models_enabled": model_service.enabled}
+        return {"status": "ok", "version": VERSION, "app_version": __version__,
+                "models_enabled": model_service.enabled}
 
     @app.get("/api/catalog")
     def catalog():
-        return {"places": PLACES, "labels": LABELS, "roads": ROADS, "goals": GOAL_LABELS,
+        return {"app_version": __version__, "recording_versions": SUPPORTED_RECORDING_VERSIONS,
+                "places": PLACES, "labels": LABELS, "roads": ROADS, "goals": GOAL_LABELS,
                 "providers": [{"id": k, "protocol": p.protocol, "verification": "protocol_mock_only"}
                               for k, p in PROFILES.items()],
                 "models_enabled": model_service.enabled}
 
     @app.post("/api/sessions", status_code=201)
     async def create(config: Config):
-        now = time.monotonic()
-        for sid, s in list(sessions.items()):
-            if now - s.touched > 3600:
-                s.running = False
-                if s.pending:
-                    s.pending.cancel()
-                del sessions[sid]
-        while creation_times and now - creation_times[0] > 60:
-            creation_times.popleft()
-        if len(sessions) >= 16 or len(creation_times) >= 30:
-            raise HTTPException(429, "session_limit")
-        creation_times.append(now)
-        sid = secrets.token_urlsafe(18)
-        s = Session(Engine(config))
-        sessions[sid] = s
+        sid, s = registry.create(config)
         return {"id": sid, "token": s.token, "view": s.view()}
 
     @app.get("/api/sessions/{sid}")
@@ -204,11 +196,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     @app.delete("/api/sessions/{sid}")
     async def delete(sid: str, s: Session = Depends(session)):
         async with s.lock:
-            s.running = False
-            s.epoch += 1
-            if s.pending:
-                s.pending.cancel()
-            sessions.pop(sid, None)
+            registry.remove(sid)
         return {"deleted": True}
 
     @app.post("/api/sessions/{sid}/commands")
@@ -274,10 +262,12 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
                 s.model_status = {"status": "reset", "usage": None}
             elif c.operation == "pause":
                 s.running = False
+                s.revision += 1
             else:
                 if s.recording:
                     raise HTTPException(409, "replay_is_read_only")
                 s.running = True
+                s.revision += 1
                 if s.runner is None or s.runner.done():
                     s.runner = asyncio.create_task(run_session(s))
             return s.view()
@@ -297,11 +287,32 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
                     engine, result = await computation(replay, data)
                 except ValueError as error:
                     raise HTTPException(422, str(error)) from None
-            s.running = False
-            s.epoch += 1
-            s.engine, s.replay_result, s.recording = engine, result, data
-            s.revision += 1
+            s.install_replay(engine, result, data)
             return s.view()
+
+    @app.post("/api/sessions/{sid}/archives", status_code=201)
+    async def save_archive(name: ArchiveName, s: Session = Depends(session)):
+        async with s.lock:
+            # Persist the complete original recording, even when its cursor is rewound.
+            data = s.recording if s.recording is not None else s.engine.export()
+            async with cpu_slots:
+                return await computation(archives.create, name.name, data)
+
+    @app.post("/api/sessions/{sid}/archives/{archive_id}/restore")
+    async def restore_archive(archive_id: str, x_archive_token: str = Header(default=""),
+                              s: Session = Depends(session)):
+        async with s.lock:
+            async with cpu_slots:
+                saved = await computation(archives.load, archive_id, x_archive_token)
+                engine, result = await computation(replay, saved["recording"])
+            s.install_replay(engine, result, saved["recording"])
+            return s.view()
+
+    @app.delete("/api/archives/{archive_id}")
+    async def delete_archive(archive_id: str, x_archive_token: str = Header(default="")):
+        async with cpu_slots:
+            await computation(archives.delete, archive_id, x_archive_token)
+        return {"deleted": True}
 
     @app.post("/api/sessions/{sid}/replay")
     async def replay_cursor(cursor: Cursor, s: Session = Depends(session)):

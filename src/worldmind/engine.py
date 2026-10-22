@@ -10,7 +10,10 @@ from pydantic import Field, model_validator
 
 from .domain import (Action, Config, GOALS, INITIAL_STOCK, PLACES, ROADS, VERSION,
                      State, StrictModel, complete, dependencies, digest, transition)
-from .planner import Budget, Context, Exhausted, decide, validate
+from .planner import Budget, Context
+from . import planner
+from .compat import planner_v01
+from .version import LEGACY_RECORDING_VERSION, SUPPORTED_RECORDING_VERSIONS
 
 
 class Command(StrictModel):
@@ -36,7 +39,11 @@ class Command(StrictModel):
 
 
 class Engine:
-    def __init__(self, config: Config | None = None):
+    def __init__(self, config: Config | None = None, *, version: str = VERSION):
+        if version not in SUPPORTED_RECORDING_VERSIONS:
+            raise ValueError("unsupported recording version")
+        self.version = version
+        self._planner = planner_v01 if version == LEGACY_RECORDING_VERSION else planner
         self.config = config or Config()
         self.world = State()
         self.tick = 0
@@ -97,7 +104,7 @@ class Engine:
                        self.knowledge_version, self.goal_version)
 
     def actor_view(self) -> dict:
-        return {"schema_version": VERSION, "actor_id": "courier",
+        return {"schema_version": self.version, "actor_id": "courier",
                 "context": asdict(self.context()), "evidence": deepcopy(self.evidence),
                 "plan": [a.model_dump() for a in self.plan], "plan_version": self.plan_version,
                 "generation": self.generation, "active": deepcopy(self.active)}
@@ -114,7 +121,7 @@ class Engine:
         return digest(self.request_context())
 
     def _budget(self) -> Budget:
-        return Budget(max(0, min(self.config.decision_budget,
+        return self._planner.Budget(max(0, min(self.config.decision_budget,
                                 self.config.total_budget - self.metrics["budget_used"])))
 
     def _charge(self, budget: Budget):
@@ -125,7 +132,7 @@ class Engine:
     def _plan(self):
         budget = self._budget()
         start = process_time_ns()
-        result = decide(self.context(), self.plan, self.config.policy, budget)
+        result = self._planner.decide(self.context(), self.plan, self.config.policy, budget)
         self.cpu_ms += (process_time_ns() - start) / 1e6
         self._charge(budget)
         if result.outcome != "retained":
@@ -239,8 +246,8 @@ class Engine:
         elif command.kind == "proposal":
             budget = self._budget()
             try:
-                ok, _, reason = validate(self.context(), command.actions, budget)
-            except Exhausted:
+                ok, _, reason = self._planner.validate(self.context(), command.actions, budget)
+            except self._planner.Exhausted:
                 ok, reason = False, "budget_exhausted"
             self._charge(budget)
             if not ok or self.active or self.status == "cancelled":
@@ -264,7 +271,7 @@ class Engine:
         assert self.metrics["budget_used"] <= self.config.total_budget
 
     def logical(self):
-        return {"version": VERSION, "config": self.config.model_dump(), "world": asdict(self.world),
+        return {"version": self.version, "config": self.config.model_dump(), "world": asdict(self.world),
                 "tick": self.tick, "actor": self.actor_view(), "merchant": self.merchant,
                 "doctor": {"location": "clinic", "policy": "fixed_receiver",
                            "received_herb": self.world.delivered[1], "received_medicine": self.world.delivered[2]},
@@ -280,8 +287,8 @@ class Engine:
                 "mode": "live_offline", "trace_length": len(self.trace)}
 
     def export(self):
-        return {"schema_version": VERSION, "config": self.config.model_dump(),
-                "initial_hash": Engine(self.config).state_hash(), "steps": deepcopy(self.trace),
+        return {"schema_version": self.version, "config": self.config.model_dump(),
+                "initial_hash": Engine(self.config, version=self.version).state_hash(), "steps": deepcopy(self.trace),
                 "final_hash": self.state_hash()}
 
 
@@ -292,7 +299,7 @@ class ReplayStep(StrictModel):
 
 
 class Recording(StrictModel):
-    schema_version: Literal["worldmind-0.1.0/river-1"]
+    schema_version: Literal["worldmind-0.1.0/river-1", "worldmind-0.2.0/river-1"]
     config: Config
     initial_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     steps: list[ReplayStep] = Field(max_length=1500)
@@ -301,7 +308,7 @@ class Recording(StrictModel):
 
 def replay(data: dict, until: int | None = None) -> tuple[Engine, dict]:
     rec = Recording.model_validate(data)
-    e = Engine(rec.config)
+    e = Engine(rec.config, version=rec.schema_version)
     if rec.initial_hash != e.state_hash():
         raise ValueError("initial hash mismatch")
     count = len(rec.steps) if until is None else until

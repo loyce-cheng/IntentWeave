@@ -3,8 +3,9 @@ import json
 import platform
 from pathlib import Path
 
-from worldmind.domain import Config, ROADS, VERSION
+from worldmind.domain import Config, ROADS
 from worldmind.engine import Command, Engine, replay
+from worldmind.version import LEGACY_RECORDING_VERSION as VERSION
 
 CASES = {
     'normal': [],
@@ -22,7 +23,7 @@ for name, inputs in CASES.items():
     for policy in ('Full', 'Local'):
         cfg = Config(policy=policy, goal='herb_clinic' if name == 'merchant_competition' else 'medicine_home', **({'decision_budget': 1} if name == 'budget_exhaustion' else {}),
                      merchant_takes_at=2 if name == 'merchant_competition' else 0)
-        e = Engine(cfg)
+        e = Engine(cfg, version=VERSION)
         for _ in range(cfg.max_ticks + 1):
             for tick, command in inputs:
                 if e.tick == tick:

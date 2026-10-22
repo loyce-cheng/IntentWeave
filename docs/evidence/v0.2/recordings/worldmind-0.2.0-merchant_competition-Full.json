@@ -1,0 +1,58 @@
+{
+  "schema_version": "worldmind-0.2.0/river-1",
+  "config": {
+    "policy": "Full",
+    "goal": "herb_clinic",
+    "decision_budget": 3000,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "merchant_takes_at": 2
+  },
+  "initial_hash": "413d197f0508c87ca6d73ca56310b2c3b244e636757a10793e3a2b97ac3d8f49",
+  "steps": [
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "070825ee6500400a12c8c454e1607971aa895580fc9ba82dd696ed865373fa0d",
+      "event_hash": "1a47ea50a2b13ff254682478863144e41741151973979f783b5055fe66aa2c05"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "25fcc70a25d109e8c8b17b19ef8e1d9225e9555f966e05b93c41390024780bd1",
+      "event_hash": "43e8ae4a91e9ff3199f200e04a9cfe3fac695ad73cd11ced5cf48d3fc0dc6fd1"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "b68262e6168f963356aafdb69390dfd48ce93b040e664f1816578599eecb8ea3",
+      "event_hash": "ae26d2270b7b602324d3744492230ec779d4f8afad682260249697b56ca90532"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "18e510f982514091a4bdc55e52b57b90fe1b76135887f9ef915e4ff20ab72c7e",
+      "event_hash": "21dbedaee83625173654da3881c2682138f239e03125e63cb383f77c9649a774"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "e2217cd7107e9d09952f8dfea1c7cba866970b486e065a0fdf01c6affdaf0763",
+      "event_hash": "030e3b1bab9f3242be15dbb7b3ea7712fb6b754991dff3372a2a39da266b8f74"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "70165aefb3ada99b3b31646daf639552242e464c7f9e8bb188edd83a319ebfee",
+      "event_hash": "71e29b9590ad160461cbf7ded8674ab7184b02cd6ef23fa5db76e320ce8c2bd6"
+    }
+  ],
+  "final_hash": "70165aefb3ada99b3b31646daf639552242e464c7f9e8bb188edd83a319ebfee"
+}
