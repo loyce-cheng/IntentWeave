@@ -15,6 +15,7 @@ from .domain import canonical, digest
 from .planner import Budget, Context, Exhausted, validate
 from .providers import (ProviderError, Settings, build_request, parse_proposal,
                         parse_response, strict_json, usage_of)
+from .tasks import computation
 
 
 class Ledger:
@@ -36,20 +37,24 @@ class Ledger:
 
     @contextmanager
     def db(self):
-        db = sqlite3.connect(self.path, timeout=5)
-        db.row_factory = sqlite3.Row
+        db = None
         try:
+            db = sqlite3.connect(self.path, timeout=5)
+            db.row_factory = sqlite3.Row
             with db:
                 yield db
+        except sqlite3.Error:
+            raise ProviderError("model_storage_unavailable") from None
         finally:
-            db.close()
+            if db is not None:
+                db.close()
 
     def reserve(self, provider: str, key: str, charged=True):
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
-            count = db.execute("SELECT COALESCE(SUM(charged),0) FROM requests").fetchone()[0]
+            count, total = db.execute(
+                "SELECT COALESCE(SUM(charged),0), COUNT(*) FROM requests").fetchone()
             # Audit/cache are bounded even when every request is a cache hit.
-            total = db.execute("SELECT COUNT(*) FROM requests").fetchone()[0]
             if (charged and count >= self.limit) or total >= 50000:
                 raise ProviderError("request_quota_exhausted")
             request_id = uuid.uuid4().hex
@@ -73,10 +78,11 @@ class Ledger:
         return parse_proposal(row[0]) if row else None
 
     def put_cache(self, key, proposal):
+        now = time.time()
         with self.db() as db:
-            db.execute("DELETE FROM cache WHERE created<?", (time.time() - 86400,))
+            db.execute("DELETE FROM cache WHERE created<?", (now - 86400,))
             db.execute("INSERT OR REPLACE INTO cache VALUES(?,?,?)",
-                       (key, time.time(), canonical(proposal.model_dump())))
+                       (key, now, canonical(proposal.model_dump())))
 
     def summary(self):
         with self.db() as db:
@@ -89,6 +95,8 @@ class Ledger:
 
 class ModelService:
     def __init__(self, ledger: Ledger, *, enabled=False, transport=None, concurrency=2):
+        if type(concurrency) is not int or concurrency < 1:
+            raise ValueError("concurrency must be a positive integer")
         self.ledger = ledger
         self.enabled = enabled
         self.transport = transport
@@ -104,10 +112,22 @@ class ModelService:
         if self.semaphore.locked():
             raise ProviderError("model_concurrency_limit")
         async with self.semaphore:
-            cached = self.ledger.get_cache(key)
-            request_id = self.ledger.reserve(settings.provider, key, charged=cached is None)
-            usage = None
+            request_id, usage = None, None
+
+            def reserve(cached):
+                nonlocal request_id
+                # Capture the committed reservation even if cancellation arrives
+                # while SQLite is working. computation waits for this assignment
+                # before cancellation propagates, so the audit can be finalized.
+                request_id = self.ledger.reserve(settings.provider, key, charged=cached is None)
+
+            async def finish(status):
+                if request_id is not None:
+                    await computation(self.ledger.finish, request_id, status, usage)
+
             try:
+                cached = await computation(self.ledger.get_cache, key)
+                await computation(reserve, cached)
                 if cached:
                     proposal = cached
                     source = "validated_cache"
@@ -145,19 +165,20 @@ class ModelService:
                     valid = False
                 if not valid:
                     raise ProviderError("semantic_rejection")
-                self.ledger.put_cache(key, proposal)
-                self.ledger.finish(request_id, source, usage)
+                if cached is None:
+                    await computation(self.ledger.put_cache, key, proposal)
+                await finish(source)
                 return {"request_id": request_id, "proposal": proposal, "source": source,
                         "usage": usage or {"known": False, "input_tokens": None, "output_tokens": None, "cost": None}}
             except asyncio.CancelledError:
-                self.ledger.finish(request_id, "cancelled", usage)
+                await finish("cancelled")
                 raise
             except (TimeoutError, httpx.TimeoutException):
-                self.ledger.finish(request_id, "timeout", usage)
+                await finish("timeout")
                 raise ProviderError("provider_timeout") from None
             except httpx.HTTPError:
-                self.ledger.finish(request_id, "network_error", usage)
+                await finish("network_error")
                 raise ProviderError("provider_network_error") from None
             except ProviderError as error:
-                self.ledger.finish(request_id, str(error), usage)
+                await finish(str(error))
                 raise

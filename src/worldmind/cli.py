@@ -30,7 +30,8 @@ def main():
         Ledger(args.path)
         print("Ledger initialized; model calls remain disabled unless explicitly enabled.")
     elif args.command == "replay":
-        data = Path(args.file).read_bytes()
+        with Path(args.file).open("rb") as source:
+            data = source.read(2_000_001)
         if len(data) > 2_000_000:
             raise SystemExit("Recording exceeds 2 MB")
         _, result = replay(json.loads(data))
@@ -43,8 +44,8 @@ def main():
             e = Engine(Config(policy=args.policy))
             for _ in range(e.config.max_ticks + 1):
                 if e.tick == 1:
-                    e.apply(Command(kind="block", target="bridge|home"))
-                e.apply(Command(kind="step"))
+                    e.advance(Command(kind="block", target="bridge|home"))
+                e.advance(Command(kind="step"))
                 if e.status not in ("ready", "running"):
                     break
             data = e.export()

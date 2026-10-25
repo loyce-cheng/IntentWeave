@@ -34,8 +34,8 @@ def episode(config, schedule, version=RECORDING_VERSION):
     for _ in range(config.max_ticks + 1):
         for tick, kind, target in schedule:
             if engine.tick == tick:
-                engine.apply(Command(kind=kind, target=target))
-        engine.apply(Command(kind="step"))
+                engine.advance(Command(kind=kind, target=target))
+        engine.advance(Command(kind="step"))
         if engine.status not in ("ready", "running"):
             return engine
     raise AssertionError("unbounded episode")

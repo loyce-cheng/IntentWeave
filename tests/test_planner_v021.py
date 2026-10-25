@@ -81,14 +81,15 @@ def test_unknown_route_is_only_an_intent_and_preserves_evidence():
 
 def test_failed_local_probes_share_full_frontier(monkeypatch):
     seen = set()
-    original = planner.candidates
+    from worldmind import planning_core
+    original = planning_core.candidates
 
     def track(state):
         assert state not in seen, "a failed window restarted BFS"
         seen.add(state)
         return original(state)
 
-    monkeypatch.setattr(planner, "candidates", track)
+    monkeypatch.setattr(planning_core, "candidates", track)
     ctx = Context(replace(State(), location="bridge", medicine=1),
                   "medicine_home", 7, {"road:bridge|home": 8}, 1, 1)
     # Retaining 28 waits cannot fit a 30-action splice or meet its TTL.

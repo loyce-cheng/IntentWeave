@@ -230,6 +230,7 @@ test("late response from a replaced session cannot overwrite the new session", a
       await route.fulfill({ response });
     } else await route.continue();
   });
+  await page.locator("#run").click();
   await snapshotCaptured;
   await page.locator("#policy").selectOption("Full");
   await expect(page.locator("#metrics")).toContainText("TICK 0 · Full");
@@ -252,4 +253,100 @@ test("late response from a replaced session cannot overwrite the new session", a
   await expect(page.locator("#metrics")).toContainText("TICK 0 · Full");
   expect(observed.every((text) => text.includes("TICK 0 · Full"))).toBe(true);
   await expect(page.locator("#error")).toBeHidden();
+});
+
+test("idle views do not poll, actor maps reuse their projection, and active polls never overlap", async ({
+  page,
+}) => {
+  let requests = 0;
+  let actorRequests = 0;
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let captured!: () => void;
+  const snapshotCaptured = new Promise<void>((resolve) => {
+    captured = resolve;
+  });
+  page.on("request", (request) => {
+    if (request.url().endsWith("/actor")) actorRequests += 1;
+  });
+  await page.route(/\/api\/sessions\/[^/]+$/, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    requests += 1;
+    const response = await route.fetch();
+    if (requests === 1) {
+      captured();
+      await delayed;
+    }
+    await route.fulfill({ response });
+  });
+  await page.locator("#perspective").selectOption("actor");
+  await expect(page.locator("#map svg")).toBeVisible();
+  await page.waitForTimeout(1100);
+  expect(requests).toBe(0);
+  expect(actorRequests).toBe(0);
+  await page.locator("#run").click();
+  await snapshotCaptured;
+  await page.waitForTimeout(1100);
+  expect(requests).toBe(1);
+  release();
+  await expect(page.locator("#metrics")).toContainText("目标已完成");
+  const completedRequests = requests;
+  await page.waitForTimeout(1100);
+  expect(requests).toBe(completedRequests);
+  await expect(page.locator("#run")).toBeDisabled();
+  await expect(page.locator("#step")).toBeDisabled();
+});
+
+test("background visibility suspends polling and foreground refreshes the final state once", async ({
+  page,
+}) => {
+  let requests = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "GET" &&
+      /\/api\/sessions\/[^/]+$/.test(request.url())
+    )
+      requests += 1;
+  });
+  await page.locator("#run").click();
+  // Dispatch the browser visibility lifecycle while leaving the real server running.
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const backgroundRequests = requests;
+  await page.waitForTimeout(3000);
+  expect(requests).toBe(backgroundRequests);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(page.locator("#metrics")).toContainText("目标已完成");
+  await page.waitForTimeout(1100);
+  expect(requests).toBe(backgroundRequests + 1);
+});
+
+test("missing sessions stop automatic retries", async ({ page }) => {
+  let requests = 0;
+  await page.route(/\/api\/sessions\/[^/]+$/, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    requests += 1;
+    await route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "session_not_found" }),
+    });
+  });
+  await page.locator("#run").click();
+  await expect(page.locator("#error")).toContainText("自动刷新已暂停");
+  await page.waitForTimeout(1600);
+  expect(requests).toBe(1);
 });

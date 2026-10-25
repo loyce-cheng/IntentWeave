@@ -33,10 +33,7 @@ type View = {
     active: { action: Action; due_tick: number } | null;
     plan_version: number;
   };
-  merchant: { location: string; herb: number };
   metrics: Record<string, number>;
-  cpu_ms: number;
-  trace_length: number;
   last_repair: {
     outcome?: string;
     reason?: string;
@@ -59,7 +56,6 @@ type View = {
 };
 type Catalog = {
   app_version: string;
-  recording_versions: string[];
   places: string[];
   labels: Record<string, string>;
   roads: string[];
@@ -82,12 +78,13 @@ let view: View;
 let session = { id: "", token: "" };
 let busy = false;
 const responses = new ResponseGuard();
-let actorRequest = 0;
-let actorMapVersion = -1;
+let pollTimer: ReturnType<typeof setTimeout> | undefined;
+let polling = false;
+let pollFailures = 0;
+const MAX_POLL_FAILURES = 3;
 let archives: ArchiveReceipt[] = [];
 let archiveStorageReady = true;
 let perspective = "world";
-let actorMap: State | null = null;
 let pair: Pair | null = null;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -172,30 +169,45 @@ const api = <T>(path: string, options: RequestInit = {}) =>
   request<T>(path, options, { ...session });
 const spath = (id = session.id) => `/sessions/${id}`;
 
-async function readActor() {
-  const capability = { ...session };
-  const stamp = responses.capture(capability.id);
-  const requestId = ++actorRequest;
-  if (perspective !== "actor") return;
+/** Only a live runner or model request can change without another user action. */
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  pollTimer = undefined;
+  if (
+    busy ||
+    polling ||
+    !session.id ||
+    !view ||
+    document.hidden ||
+    pollFailures >= MAX_POLL_FAILURES ||
+    (!view.running && view.model.status !== "pending")
+  )
+    return;
+  pollTimer = setTimeout(refresh, 500 * 2 ** pollFailures);
+}
+
+async function refresh() {
+  if (busy || polling || !session.id || document.hidden) return;
+  clearTimeout(pollTimer);
+  pollTimer = undefined;
+  polling = true;
+  const stamp = responses.capture(session.id);
   try {
-    const known = await request<View["actor"]>(
-      spath(capability.id) + "/actor",
-      {},
-      capability,
-    );
-    if (
-      responses.current(stamp, session.id) &&
-      requestId === actorRequest &&
-      perspective === "actor" &&
-      known.context.knowledge_version >= view.actor.context.knowledge_version
-    ) {
-      actorMap = known.context.state;
-      actorMapVersion = known.context.knowledge_version;
-      map();
-    }
+    await updateView(spath(), { signal: AbortSignal.timeout(10_000) });
+    if (responses.current(stamp, session.id)) pollFailures = 0;
   } catch (error) {
-    if (responses.current(stamp, session.id) && requestId === actorRequest)
+    if (responses.current(stamp, session.id)) {
+      pollFailures =
+        error instanceof ApiError && [404, 410].includes(error.status)
+          ? MAX_POLL_FAILURES
+          : pollFailures + 1;
       notify(error);
+      if (pollFailures >= MAX_POLL_FAILURES)
+        $("error").textContent += " · 自动刷新已暂停，请重新操作或刷新页面。";
+    }
+  } finally {
+    polling = false;
+    schedulePoll();
   }
 }
 
@@ -204,13 +216,14 @@ async function updateView(path: string, options: RequestInit = {}) {
   const stamp = responses.capture(capability.id);
   const latest = await request<View>(path, options, capability);
   if (responses.accept(stamp, session.id, latest.revision, view.revision)) {
+    const changed =
+      latest.revision !== view.revision ||
+      latest.state_hash !== view.state_hash ||
+      latest.running !== view.running ||
+      JSON.stringify(latest.model) !== JSON.stringify(view.model);
     view = latest;
-    if (actorMapVersion !== view.actor.context.knowledge_version) {
-      actorMap = null;
-      actorMapVersion = -1;
-    }
-    render();
-    await readActor();
+    if (changed) render();
+    schedulePoll();
   }
 }
 function notify(error: unknown) {
@@ -222,20 +235,39 @@ async function perform(fn: () => Promise<void>) {
   if (busy) return;
   busy = true;
   responses.invalidate();
-  actorRequest += 1;
+  pollFailures = 0;
+  schedulePoll();
   $("error").hidden = true;
   renderControls();
   try {
     await fn();
-  } catch (e) {
-    notify(e);
+  } catch (error) {
+    notify(error);
+    if (error instanceof ApiError && [404, 410].includes(error.status))
+      pollFailures = MAX_POLL_FAILURES;
+    // Synchronize after a conflict, but never re-submit the user's mutation.
+    if (error instanceof ApiError && error.status === 409) {
+      try {
+        await updateView(spath());
+      } catch (refreshError) {
+        notify(refreshError);
+      }
+    }
   } finally {
     busy = false;
     renderControls();
+    schedulePoll();
   }
 }
 async function createSession() {
-  if (session.id) await api(spath(), { method: "DELETE" });
+  if (session.id) {
+    try {
+      await api(spath(), { method: "DELETE" });
+    } catch (error) {
+      if (!(error instanceof ApiError) || ![404, 410].includes(error.status))
+        throw error;
+    }
+  }
   const data = await api<{ id: string; token: string; view: View }>(
     "/sessions",
     {
@@ -249,13 +281,10 @@ async function createSession() {
   responses.invalidate();
   session = { id: data.id, token: data.token };
   view = data.view;
-  actorMap = null;
-  actorMapVersion = -1;
   pair = null;
   $("comparison").innerHTML =
     '<div class="empty">运行一次对照，让结果回答问题。</div>';
   render();
-  await readActor();
 }
 async function command(kind: string, target?: string) {
   await updateView(spath() + "/commands", {
@@ -293,11 +322,9 @@ const positions: Record<string, [number, number]> = {
   home: [635, 175],
 };
 function map() {
-  const s = perspective === "world" ? view.world : actorMap;
-  if (!s) {
-    $("map").textContent = "正在读取受限角色视图…";
-    return;
-  }
+  // The response already contains the authoritative actor-only projection.
+  // Reading it avoids a second request and a map from a different revision.
+  const s = perspective === "world" ? view.world : view.actor.context.state;
   const roads = catalog.roads
     .map((r, i) => {
       const [a, b] = r.split("|");
@@ -420,9 +447,13 @@ function render() {
 
 function renderControls() {
   if (!view) return;
+  const terminal = !["ready", "running"].includes(view.status);
   for (const id of ["step", "run", "changeGoal", "block", "remove", "cancel"])
     $<HTMLButtonElement>(id).disabled =
-      busy || !!view.replay || (view.running && ["step", "run"].includes(id));
+      busy ||
+      !!view.replay ||
+      (terminal && ["step", "run", "cancel"].includes(id)) ||
+      (view.running && ["step", "run"].includes(id));
   $<HTMLButtonElement>("step").disabled ||= view.model.status === "pending";
   for (const id of [
     "pause",
@@ -435,6 +466,11 @@ function renderControls() {
     "model-cancel",
   ])
     $<HTMLButtonElement>(id).disabled = busy;
+  $<HTMLButtonElement>("pause").disabled ||= !view.running;
+  $<HTMLButtonElement>("model-cancel").disabled ||=
+    view.model.status !== "pending";
+  $<HTMLButtonElement>("replay-start").disabled ||= view.replay?.verified === 0;
+  $<HTMLButtonElement>("replay-next").disabled ||= !!view.replay?.complete;
   $<HTMLSelectElement>("policy").disabled = busy;
   $<HTMLInputElement>("import").disabled = busy;
   $<HTMLInputElement>("cursor").disabled = busy;
@@ -452,6 +488,8 @@ function renderControls() {
     busy ||
     !catalog.models_enabled ||
     !!view.replay ||
+    !!view.actor.active ||
+    terminal ||
     view.model.status === "pending";
 }
 
@@ -471,6 +509,7 @@ function renderPair() {
   $("export-pair").onclick = () => download(pair, "worldmind-comparison.json");
 }
 async function seek(until: number) {
+  if (until === view.replay?.verified) return;
   await updateView(spath() + "/replay", {
     method: "POST",
     body: JSON.stringify({ until }),
@@ -598,13 +637,9 @@ async function init() {
     perform(() => command("block", $<HTMLSelectElement>("road").value));
   $("remove").onclick = () =>
     perform(() => command("remove", $<HTMLSelectElement>("material").value));
-  $("perspective").onchange = async () => {
+  $("perspective").onchange = () => {
     perspective = $<HTMLSelectElement>("perspective").value;
-    actorRequest += 1;
-    actorMap = null;
-    actorMapVersion = -1;
     map();
-    await readActor();
   };
   $("compare").onclick = () =>
     perform(async () => {
@@ -648,12 +683,13 @@ async function init() {
   $("model-propose").onclick = async () => {
     if (busy || view.model.status === "pending") return;
     responses.invalidate();
-    actorRequest += 1;
     const stamp = responses.capture(session.id);
     $("error").hidden = true;
     try {
       view.model.status = "pending";
+      pollFailures = 0;
       render();
+      schedulePoll();
       await updateView(spath() + "/model", {
         method: "POST",
         headers: {
@@ -670,16 +706,16 @@ async function init() {
   $("model-cancel").onclick = () =>
     perform(async () => {
       await api(spath() + "/model/cancel", { method: "POST" });
+      await updateView(spath());
     });
   $("archive-save").onclick = () => perform(saveArchive);
-  window.setInterval(async () => {
-    if (busy || !session.id) return;
-    const stamp = responses.capture(session.id);
-    try {
-      await updateView(spath());
-    } catch (error) {
-      if (responses.current(stamp, session.id)) notify(error);
+  document.addEventListener("visibilitychange", () => {
+    schedulePoll();
+    if (!document.hidden) {
+      // The runner may have finished while this page was in the background.
+      pollFailures = 0;
+      void refresh();
     }
-  }, 500);
+  });
 }
 init().catch(notify);

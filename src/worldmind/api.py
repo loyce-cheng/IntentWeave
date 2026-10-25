@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import hmac
 import os
-import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -25,31 +24,7 @@ from .archives import (ArchiveStore, ArchiveError, ArchiveNotFound, ArchiveCapac
                        ArchiveCorrupt, ArchiveUnavailable)
 from .sessions import Session, SessionError, SessionRegistry
 from .version import __version__, SUPPORTED_RECORDING_VERSIONS
-
-
-async def computation(fn, *args):
-    """Cancellation must not release the writer lock while its worker is still mutating."""
-    task = asyncio.create_task(asyncio.to_thread(fn, *args))
-    cancelled = False
-    while not task.done():
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            # Repeated cancellation must never propagate into the thread wrapper.
-            cancelled = True
-        except BaseException:
-            if cancelled:
-                raise asyncio.CancelledError from None
-            raise
-    try:
-        result = task.result()
-    except BaseException:
-        if cancelled:
-            raise asyncio.CancelledError from None
-        raise
-    if cancelled:
-        raise asyncio.CancelledError
-    return result
+from .tasks import computation
 
 
 class RevisionRequest(StrictModel):
@@ -101,14 +76,9 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     @asynccontextmanager
     async def lifespan(app):
         yield
-        tasks = []
-        for s in sessions.values():
-            s.running = False
-            for task in (s.runner, s.pending):
-                if task and not task.done():
-                    task.cancel()
-                    tasks.append(task)
-        await asyncio.gather(*tasks, return_exceptions=True)
+        for sid in list(sessions):
+            registry.remove(sid)
+        await asyncio.gather(*registry.retiring, return_exceptions=True)
 
     app = FastAPI(title="Worldmind", version=__version__, lifespan=lifespan)
     app.state.sessions = sessions
@@ -206,72 +176,80 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     async def command(m: Mutation, s: Session = Depends(session)):
         async with s.lock:
             fingerprint = digest(m.model_dump())
-            if m.command_id in s.receipts:
-                old, view = s.receipts[m.command_id]
-                if old != fingerprint:
-                    raise HTTPException(409, "command_id_reused")
-                return view
-            if len(s.receipts) >= 1500:
-                raise HTTPException(409, "command_limit")
-            if m.expected_revision != s.revision:
-                raise HTTPException(409, "revision_conflict")
+            cached = s.check_mutation(m.command_id, m.expected_revision, fingerprint)
+            if cached is not None:
+                return cached
             if s.recording:
                 raise HTTPException(409, "replay_is_read_only")
             if m.command.kind == "proposal":
                 raise HTTPException(403, "proposal_requires_model_gateway")
             if s.pending is not None and m.command.kind == "step":
                 raise HTTPException(409, "model_barrier")
+
+            def commit(_):
+                s.revision += 1
+                if m.command.kind in ("goal", "cancel"):
+                    # Late model replies remain auditable, but cannot change this epoch.
+                    s.epoch += 1
+                    s.pause()
+                return s.remember(m.command_id, fingerprint)
+
             async with cpu_slots:
                 try:
-                    await computation(s.engine.apply, m.command)
+                    return await computation(s.engine.advance, m.command, on_complete=commit)
                 except ValueError:
                     raise HTTPException(409, "session_record_limit") from None
-            s.revision += 1
-            if m.command.kind in ("goal", "cancel"):
-                # Keep the HTTP response task alive to audit late replies as stale.
-                s.epoch += 1
-                s.running = False
-            view = s.view()
-            s.receipts[m.command_id] = (fingerprint, view)
-            return view
 
     async def run_session(s: Session):
         try:
             while True:
                 async with s.lock:
-                    if not s.running or s.recording or time.monotonic() - s.touched > 3600:
-                        s.running = False
+                    remaining = registry.ttl - (registry.clock() - s.touched)
+                    if not s.running or not s.can_run or remaining <= 0:
+                        s.pause()
                         return
+                    s.wakeup.clear()
                     if s.pending is None:
+                        def commit(_):
+                            s.revision += 1
+
                         async with cpu_slots:
-                            await computation(s.engine.apply, Command(kind="step"))
-                        s.revision += 1
-                        if s.engine.status not in ("ready", "running"):
-                            s.running = False
+                            await computation(s.engine.advance, Command(kind="step"), on_complete=commit)
+                        if not s.can_run:
+                            s.pause()
                             return
-                await asyncio.sleep(0.25)
-        except ValueError:
-            s.running = False
+                        delay = min(0.25, remaining)
+                    else:
+                        # Model completion/pause/removal wakes this task. Do not
+                        # poll a blocked actor four times a second.
+                        delay = remaining
+                try:
+                    await asyncio.wait_for(s.wakeup.wait(), timeout=delay)
+                except TimeoutError:
+                    pass
+        except (ValueError, asyncio.CancelledError):
+            s.pause()
 
     @app.post("/api/sessions/{sid}/control")
     async def control(c: Control, s: Session = Depends(session)):
         async with s.lock:
             if c.operation == "reset":
-                s.running = False
+                s.pause()
                 s.epoch += 1
                 s.engine = Engine(s.engine.config)
                 s.recording = s.replay_result = None
                 s.revision += 1
                 s.model_status = {"status": "reset", "usage": None}
             elif c.operation == "pause":
-                s.running = False
+                s.pause()
                 s.revision += 1
             else:
                 if s.recording:
                     raise HTTPException(409, "replay_is_read_only")
-                s.running = True
+                s.running = s.can_run
                 s.revision += 1
-                if s.runner is None or s.runner.done():
+                s.wakeup.set()
+                if s.running and (s.runner is None or s.runner.done()):
                     s.runner = asyncio.create_task(run_session(s))
             return s.view()
 
@@ -306,9 +284,8 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
                               s: Session = Depends(session)):
         async with s.lock:
             async with cpu_slots:
-                saved = await computation(archives.load, archive_id, x_archive_token)
-                engine, result = await computation(replay, saved["recording"])
-            s.install_replay(engine, result, saved["recording"])
+                engine, result, recording = await computation(archives.restore, archive_id, x_archive_token)
+            s.install_replay(engine, result, recording)
             return s.view()
 
     @app.delete("/api/archives/{archive_id}")
@@ -334,19 +311,11 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     async def resume(req: RevisionRequest, s: Session = Depends(session)):
         async with s.lock:
             fingerprint = digest({"operation": "resume", **req.model_dump()})
-            if req.command_id in s.receipts:
-                old, view = s.receipts[req.command_id]
-                if old != fingerprint:
-                    raise HTTPException(409, "command_id_reused")
-                return view
-            if len(s.receipts) >= 1500:
-                raise HTTPException(409, "command_limit")
-            if req.expected_revision != s.revision:
-                raise HTTPException(409, "revision_conflict")
+            cached = s.check_mutation(req.command_id, req.expected_revision, fingerprint)
+            if cached is not None:
+                return cached
             s.resume_replay()
-            view = s.view()
-            s.receipts[req.command_id] = (fingerprint, view)
-            return view
+            return s.remember(req.command_id, fingerprint)
 
     @app.post("/api/sessions/{sid}/compare")
     async def paired(s: Session = Depends(session)):
@@ -372,21 +341,34 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             s.model_status = {"status": "pending", "usage": None}
             task = asyncio.create_task(model_service.propose(settings, context, validation_context))
             s.pending = task
+        result, status = None, None
         try:
             result = await task
             async with s.lock:
                 if epoch != s.epoch or context_hash != s.engine.context_digest():
                     status = "discarded_stale"
                 else:
-                    s.engine.apply(Command(kind="proposal", actions=result["proposal"].actions))
-                    s.revision += 1
-                    status = "accepted" if s.engine.events[-1]["type"] == "proposal_accepted" else "rejected"
-                model_service.ledger.finish(result["request_id"], status)
+                    def commit(_):
+                        nonlocal status
+                        s.revision += 1
+                        status = "accepted" if s.engine.events[-1]["type"] == "proposal_accepted" else "rejected"
+
+                    async with cpu_slots:
+                        await computation(s.engine.advance, Command(kind="proposal", actions=result["proposal"].actions),
+                                          on_complete=commit)
                 s.model_status = {"status": status, "usage": result["usage"], "source": result["source"]}
+                await computation(model_service.ledger.finish, result["request_id"], status)
                 return s.view()
         except asyncio.CancelledError:
             async with s.lock:
-                s.model_status = {"status": "cancelled", "usage": None}
+                # A completed proposal write cannot be undone by disconnecting.
+                # Preserve its outcome in the audit and presentation as well.
+                status = status or "cancelled"
+                if result is not None:
+                    s.model_status = {"status": status, "usage": result["usage"], "source": result["source"]}
+                    await computation(model_service.ledger.finish, result["request_id"], status)
+                else:
+                    s.model_status = {"status": status, "usage": None}
                 return s.view()
         except ProviderError as error:
             async with s.lock:
@@ -396,6 +378,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             async with s.lock:
                 if s.pending is task:
                     s.pending = None
+                    s.wakeup.set()
 
     @app.post("/api/sessions/{sid}/model/cancel")
     async def cancel_model(s: Session = Depends(session)):
