@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from .domain import (Action, Config, GOALS, INITIAL_STOCK, PLACES, ROADS, VERSION,
-                     State, StrictModel, complete, dependencies, digest, transition)
+                     State, StrictModel, complete, digest, transition)
 from .planner import Budget, Context
 from . import planner
 from .compat import planner_v01, planner_v02
@@ -239,6 +239,12 @@ class Engine:
                 self.status = "success"
 
     def apply(self, command: Command, record: bool = True) -> dict:
+        """Execute a command and return an independent presentation snapshot."""
+        self.advance(command, record)
+        return self.view()
+
+    def advance(self, command: Command, record: bool = True) -> None:
+        """Execute/record without building an unused UI snapshot in batch callers."""
         if len(self.trace) >= 1500 or len(self.events) >= 6000:
             raise ValueError("session record limit; export and reset")
         if command.kind == "step":
@@ -285,7 +291,6 @@ class Engine:
         if record:
             self.trace.append({"input": command.model_dump(exclude_none=True),
                                "state_hash": self.state_hash(), "event_hash": digest(self.events)})
-        return self.view()
 
     def _invariants(self):
         assert 0 <= self.world.herb <= 2 and 0 <= self.world.medicine <= 2
@@ -305,7 +310,8 @@ class Engine:
         return digest(self.logical())
 
     def view(self):
-        return {**deepcopy(self.logical()), "state_hash": self.state_hash(), "events": deepcopy(self.events[-150:]),
+        logical = deepcopy(self.logical())
+        return {**logical, "state_hash": digest(logical), "events": deepcopy(self.events[-150:]),
                 "event_count": len(self.events), "cpu_ms": round(self.cpu_ms, 3),
                 "mode": "live_offline", "trace_length": len(self.trace)}
 
@@ -332,16 +338,19 @@ class Recording(StrictModel):
 def replay(data: dict, until: int | None = None) -> tuple[Engine, dict]:
     rec = Recording.model_validate(data)
     e = Engine(rec.config, version=rec.schema_version)
-    if rec.initial_hash != e.state_hash():
+    actual_hash = e.state_hash()
+    if rec.initial_hash != actual_hash:
         raise ValueError("initial hash mismatch")
     count = len(rec.steps) if until is None else until
     if type(count) is not int or not 0 <= count <= len(rec.steps):
         raise ValueError("invalid replay cursor")
     for i, step in enumerate(rec.steps[:count]):
-        e.apply(step.input)
-        if step.state_hash != e.state_hash() or step.event_hash != digest(e.events):
+        e.advance(step.input)
+        actual = e.trace[-1]  # computed from execution, never from imported hashes
+        actual_hash = actual["state_hash"]
+        if step.state_hash != actual_hash or step.event_hash != actual["event_hash"]:
             raise ValueError(f"replay divergence at step {i + 1}")
-    if count == len(rec.steps) and e.state_hash() != rec.final_hash:
+    if count == len(rec.steps) and actual_hash != rec.final_hash:
         raise ValueError("final hash mismatch")
     return e, {"verified": count, "total": len(rec.steps), "complete": count == len(rec.steps),
                "mode": "verified_replay"}
@@ -350,13 +359,14 @@ def replay(data: dict, until: int | None = None) -> tuple[Engine, dict]:
 def compare(config: Config, commands: list[tuple[int, Command]] | None = None) -> dict:
     """Fixed external tick schedule, identical action model and budget accounting."""
     results = {}
+    schedule = [(1, Command(kind="block", target="bridge|home"))] if commands is None else commands
     for policy in ("Full", "Local"):
         e = Engine(config.model_copy(update={"policy": policy}))
         for _ in range(config.max_ticks + 1):
-            for tick, command in commands or [(1, Command(kind="block", target="bridge|home"))]:
+            for tick, command in schedule:
                 if tick == e.tick:
-                    e.apply(command)
-            e.apply(Command(kind="step"))
+                    e.advance(command)
+            e.advance(Command(kind="step"))
             if e.status not in ("ready", "running"):
                 break
         results[policy] = {"status": e.status, "tick": e.tick, "metrics": e.metrics,

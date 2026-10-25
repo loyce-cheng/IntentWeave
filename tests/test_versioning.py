@@ -7,24 +7,9 @@ import pytest
 from worldmind import __version__
 from worldmind.domain import VERSION
 from worldmind.engine import Command, Engine, replay
-from worldmind.version import LEGACY_RECORDING_VERSION
 
 
 OLD_RECORDINGS = sorted((Path(__file__).parents[1] / "docs/evidence/recordings").glob("*.json"))
-
-
-@pytest.mark.parametrize("path", OLD_RECORDINGS, ids=lambda p: p.stem)
-def test_original_v01_recordings_and_every_cursor(path):
-    original = path.read_bytes()
-    data = json.loads(original)
-    assert data["schema_version"] == LEGACY_RECORDING_VERSION
-    engine, result = replay(data)
-    assert result["complete"] and engine.export() == data
-    for cursor in range(len(data["steps"]) + 1):
-        partial, checked = replay(data, cursor)
-        assert checked["verified"] == cursor
-        assert partial.version == LEGACY_RECORDING_VERSION
-    assert path.read_bytes() == original
 
 
 def test_v02_protocol_and_relabelled_legacy_are_distinct():
@@ -40,11 +25,15 @@ def test_v02_protocol_and_relabelled_legacy_are_distinct():
         Engine(version="worldmind-99.0/river-1")
 
 
-V02_RECORDINGS = sorted((Path(__file__).parents[1] / "docs/evidence/v0.2/recordings").glob("worldmind-0.2.0-*.json"))
+RECORDINGS = OLD_RECORDINGS + sorted(
+    (Path(__file__).parents[1] / "docs/evidence/v0.2/recordings").glob("worldmind-0.2.0-*.json")
+) + sorted(
+    (Path(__file__).parents[1] / "docs/evidence/v0.2.1/recordings").glob("*.json")
+)
 
 
-@pytest.mark.parametrize("path", V02_RECORDINGS, ids=lambda p: p.stem)
-def test_original_v02_recordings_and_every_cursor(path):
+@pytest.mark.parametrize("path", RECORDINGS, ids=lambda p: p.stem)
+def test_original_recordings_and_every_cursor(path):
     original = path.read_bytes()
     data = json.loads(original)
     engine, result = replay(data)

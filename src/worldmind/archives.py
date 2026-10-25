@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 from .domain import canonical
-from .engine import Recording, replay
+from .engine import Engine, Recording, replay
 
 
 class ArchiveError(Exception):
@@ -144,7 +144,7 @@ class ArchiveStore:
         return {key: row[key] for key in (
             "id", "name", "schema_version", "created_at", "expires_at", "step_count", "byte_count")}
 
-    def _recording(self, data: dict) -> tuple[dict, bytes]:
+    def _recording(self, data: dict) -> tuple[dict, bytes, Engine, dict]:
         try:
             value = Recording.model_validate(data).model_dump(exclude_none=True)
             payload = canonical(value).encode("utf-8")
@@ -153,15 +153,15 @@ class ArchiveStore:
         if len(payload) > self.max_recording_bytes:
             raise InvalidArchive("archive_recording_too_large")
         try:
-            replay(value)
+            engine, verified = replay(value)
         except (ValueError, TypeError, RecursionError):
             raise InvalidArchive("archive_replay_diverged") from None
-        return value, payload
+        return value, payload, engine, verified
 
     def create(self, name: str, recording: dict) -> dict:
         """Validate fully, then atomically reserve storage and return one access token."""
         name = _name(name)
-        data, payload = self._recording(recording)
+        data, payload, _, _ = self._recording(recording)
         archive_id = secrets.token_urlsafe(24)
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
@@ -199,8 +199,8 @@ class ArchiveStore:
         if not hmac.compare_digest(presented, expected) or row is None:
             raise ArchiveNotFound()
 
-    def load(self, archive_id: str, token: str) -> dict:
-        """Read-only retrieval; revalidate integrity and every replay step on each load."""
+    def _load(self, archive_id: str, token: str) -> tuple[dict, dict, Engine, dict]:
+        """Authenticate, check integrity and replay once, retaining the verified engine."""
         if not isinstance(archive_id, str) or not 1 <= len(archive_id) <= 128:
             raise ArchiveNotFound()
         with self._db() as db:
@@ -222,7 +222,7 @@ class ArchiveStore:
                     or not hmac.compare_digest(hashlib.sha256(payload).hexdigest(), row["payload_hash"])):
                 raise ArchiveCorrupt()
             data = json.loads(payload)
-            value, normalized = self._recording(data)
+            value, normalized, engine, verified = self._recording(data)
             if (normalized != payload or row["schema_version"] != value["schema_version"]
                     or row["step_count"] != len(value["steps"])
                     or _name(row["name"]) != row["name"]
@@ -231,7 +231,17 @@ class ArchiveStore:
                 raise ArchiveCorrupt()
         except (InvalidArchive, ValueError, TypeError, RecursionError, UnicodeError):
             raise ArchiveCorrupt() from None
-        return {"archive": self._metadata(row), "recording": value}
+        return self._metadata(row), value, engine, verified
+
+    def load(self, archive_id: str, token: str) -> dict:
+        """Read-only retrieval with integrity and full replay validation."""
+        metadata, value, _, _ = self._load(archive_id, token)
+        return {"archive": metadata, "recording": value}
+
+    def restore(self, archive_id: str, token: str) -> tuple[Engine, dict, dict]:
+        """Return the verified execution state without replaying the recording twice."""
+        _, value, engine, verified = self._load(archive_id, token)
+        return engine, verified, value
 
     def delete(self, archive_id: str, token: str) -> None:
         """Delete only with its independent capability; session credentials cannot substitute."""

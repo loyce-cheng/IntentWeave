@@ -128,7 +128,7 @@ class WorldmindClient:
 
     def attach_session(self, session_id: str, token: str) -> WorldmindSession:
         """Attach existing credentials without claiming that they are still valid."""
-        return WorldmindSession(self, _identifier(session_id), _token(token))
+        return WorldmindSession(self, session_id, token)
 
     def delete_archive(self, receipt: ArchiveReceipt) -> None:
         self._request("DELETE", f"/archives/{receipt.id}",

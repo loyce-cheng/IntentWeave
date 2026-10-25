@@ -4,7 +4,7 @@
 
 **当前为 0.2.1 开发版本**，改进 Local 搜索复用和短有效期证据下的目标推进，支持从已验证存档的任意游标继续执行。默认不调用模型、不需要 API Key、不产生模型费用。当前交付为源码及本地演示，未部署公开 HTTPS 服务、未验证真实供应商联通。实际验证和负面结果见 [0.2.1 测试报告](docs/TEST_REPORT_V021.md)。
 
-改进分支为 `codex/improve-v0.2`，基于 0.2 最新提交 `dc89e42`；使用该分支获取本版本。升级范围和验证结果见 [本轮报告](docs/TEST_REPORT_V021.md)，变化见 [CHANGELOG](CHANGELOG.md)。
+当前审查分支为 `codex/review-efficiency`，基于 0.2.1 提交 `97e8eeb`。代码精简、取消一致性与资源开销的验证见 [审查报告](docs/REVIEW_EFFICIENCY.md)，版本升级结果见 [0.2.1 报告](docs/TEST_REPORT_V021.md)，变化见 [CHANGELOG](CHANGELOG.md)。
 
 ![0.2.1 浏览器验证中的断桥修复与回放存档界面](docs/evidence/v0.2.1/desktop.png)
 
@@ -120,17 +120,17 @@ Playwright 启动实际后端并使用生产构建，不替换业务 API。已�
 ## 代码与设计
 
 - `src/worldmind/domain.py`：有限动作模型和输入类型。
-- `planner.py`：共享 BFS、连续窗口替换、完整剩余计划校验和预算。
+- `planning_core.py` / `planner.py`：版本稳定的 BFS、校验与预算，以及当前修复和观察策略。
 - `engine.py`：权威世界、角色观察、动作执行、事件、导出与回放。
 - `providers.py` / `models.py`：协议差异、严格提议校验、持久额度/缓存/审计。
-- `sessions.py` / `api.py`：会话生命周期、单写者、幂等命令、后台运行与异步模型代次。
+- `sessions.py` / `tasks.py` / `api.py`：会话生命周期、取消安全的后台计算、幂等命令与 HTTP 协议。
 - `archives.py`：独立的 SQLite 回放存储、凭证校验、时效与容量限制。
-- `version.py` / `compat/planner_v01.py`：应用版本、记录协议与 0.1 回放分派。
+- `version.py` / `compat/`：应用版本、记录协议与 0.1 / 0.2 历史决策策略。
 - `sdk.py`：同步 Python HTTP 客户端。
 - `web`：TypeScript/Vite 交互工作台与 Playwright 测试。
 
 [当前实现与限制](docs/IMPLEMENTATION.md) · [0.2.1 测试报告](docs/TEST_REPORT_V021.md) · [升级进度](docs/UPGRADE_V02.md) · [0.1 历史报告](docs/TEST_REPORT.md)
 
-Local 的优化结果有明确边界：本轮断桥例子的 Local 预算由 117 降至 102，Full 为 103；缺材例子仍是 Local 109、Full 87。证据有效期设为 3 的检查仍达到 40 tick 上限。下一步应改进证据刷新与修复窗口选择，并扩大冻结场景集；不能把当前少量案例视作普遍优势。
+0.2.1 固定缺材案例的 Full/Local 预算均为 66，TTL=3 的送药在 12 tick 完成。短 TTL 的无解场景虽然提前结束无进展观察，但搜索成本仍可能更高；少量固定案例不能证明普遍成本优势。此次代码审查保留算法预算、动作次序和历史哈希，主要减少重复回放、快照和无效轮询。
 
 原始构思完整保留：[汇编](Worldmind-完整项目构思与规划.md)、[首版计划](docs/plan/07-两周上线计划.md)、[长期计划](docs/plan/01-项目总规划.md)。旧文档中的未来能力和研究假设不是当前已实现清单。

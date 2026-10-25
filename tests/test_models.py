@@ -293,3 +293,67 @@ async def test_chunked_response_cannot_bypass_size_limit(tmp_path):
     with pytest.raises(ProviderError, match='response_too_large'):
         await service.propose(settings('deepseek'), e.request_context(), e.context())
     assert ledger.summary()['requests'][0]['status'] == 'response_too_large'
+
+
+async def test_cache_hit_does_not_write_or_extend_its_expiry(tmp_path, monkeypatch):
+    engine = Engine()
+    ledger = Ledger(str(tmp_path / "ledger.db"))
+
+    async def handler(request):
+        return httpx.Response(200, json=response_for("chat", proposal_for(engine)))
+
+    service = ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler))
+    await service.propose(settings("deepseek"), engine.request_context(), engine.context())
+    with ledger.db() as db:
+        before = tuple(db.execute("SELECT key, created, proposal FROM cache").fetchone())
+
+    def unexpected(*args):
+        raise AssertionError("cache hits must not rewrite or renew cached proposals")
+
+    monkeypatch.setattr(ledger, "put_cache", unexpected)
+    result = await service.propose(settings("deepseek"), engine.request_context(), engine.context())
+    assert result["source"] == "validated_cache"
+    with ledger.db() as db:
+        assert tuple(db.execute("SELECT key, created, proposal FROM cache").fetchone()) == before
+
+
+async def test_cancel_during_reservation_joins_worker_and_finalizes_audit(tmp_path, monkeypatch):
+    import threading
+
+    entered, release = threading.Event(), threading.Event()
+    ledger = Ledger(str(tmp_path / "ledger.db"))
+    reserve = ledger.reserve
+
+    def slow_reserve(*args, **kwargs):
+        result = reserve(*args, **kwargs)
+        entered.set()
+        assert release.wait(5)
+        return result
+
+    async def unexpected(request):
+        raise AssertionError("cancelled reservation must not send a provider request")
+
+    monkeypatch.setattr(ledger, "reserve", slow_reserve)
+    service = ModelService(ledger, enabled=True, transport=httpx.MockTransport(unexpected))
+    engine = Engine()
+    task = asyncio.create_task(service.propose(settings("deepseek"), engine.request_context(), engine.context()))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        for _ in range(3):
+            task.cancel()
+            await asyncio.sleep(0)
+            assert not task.done()
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert ledger.summary()["requests"][0]["status"] == "cancelled"
+    assert ledger.summary()["reserved_requests"] == 1
+    assert not service.semaphore.locked()
+
+
+def test_ledger_storage_failures_are_redacted(tmp_path):
+    ledger = Ledger(str(tmp_path / "ledger.db"))
+    ledger.path = str(tmp_path / "private-missing-directory" / "secret.db")
+    with pytest.raises(ProviderError, match="^model_storage_unavailable$"):
+        ledger.summary()
