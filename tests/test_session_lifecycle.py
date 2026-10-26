@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from worldmind.api import computation, create_app
-from .test_api import new
+from .helpers import new
 
 
 @pytest.mark.parametrize("worker_fails", [False, True])

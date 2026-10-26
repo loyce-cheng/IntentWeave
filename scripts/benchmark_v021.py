@@ -102,7 +102,7 @@ def run(output, repeats):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("docs/evidence/v0.2.1"))
+    parser.add_argument("--output", type=Path, default=Path("var/benchmarks/v0.2.1"))
     parser.add_argument("--repeats", type=int, default=5)
     args = parser.parse_args()
     if not 1 <= args.repeats <= 100:

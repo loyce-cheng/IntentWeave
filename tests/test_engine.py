@@ -7,14 +7,7 @@ from pydantic import ValidationError
 from worldmind.domain import Action, Config, PLACES, ROADS, State, transition
 from worldmind.engine import Command, Engine, compare, replay
 from worldmind.planner import Budget, Context, decide, validate
-
-
-def finish(e):
-    for _ in range(e.config.max_ticks + 2):
-        e.apply(Command(kind="step"))
-        if e.status not in ("ready", "running"):
-            return e
-    pytest.fail("unbounded runtime")
+from .helpers import finish
 
 
 @pytest.mark.parametrize("goal", ["medicine_home", "herb_clinic", "medicine_clinic"])

@@ -9,12 +9,7 @@ from worldmind.domain import Config
 from worldmind.engine import Command, Engine, replay
 from worldmind.sdk import SDKError, WorldmindClient
 from worldmind.version import SUPPORTED_RECORDING_VERSIONS
-
-
-def finish(engine):
-    while engine.status in ("ready", "running"):
-        engine.apply(Command(kind="step"))
-    return engine
+from .helpers import finish
 
 
 @pytest.mark.parametrize("version", SUPPORTED_RECORDING_VERSIONS)

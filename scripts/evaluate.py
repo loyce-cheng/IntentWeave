@@ -1,4 +1,5 @@
 """Author-written small deterministic examples, not an independent research benchmark."""
+import argparse
 import json
 import platform
 from pathlib import Path
@@ -16,9 +17,11 @@ CASES = {
     'budget_exhaustion': [],
     'merchant_competition': [],
 }
-def main():
+
+
+def run(output: Path):
     results = []
-    recordings = Path('docs/evidence/recordings')
+    recordings = output / 'recordings'
     recordings.mkdir(parents=True, exist_ok=True)
     for name, inputs in CASES.items():
         for policy in ('Full', 'Local'):
@@ -44,10 +47,12 @@ def main():
               'scope': '7 author-written cases x 2 policies; deterministic, not statistical confirmation',
               'cpu_scope': 'planning and sequence validation only, not perception/HTTP/render/network',
               'results': results}
-    Path('docs/evidence/evaluation.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    (output / 'evaluation.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     for r in results:
         print(f'{r["case"]:22} {r["policy"]:5} {r["status"]:18} ticks={r["tick"]:3} budget={r["metrics"]["budget_used"]:5}')
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=Path("var/benchmarks/v0.1"))
+    run(parser.parse_args().output)

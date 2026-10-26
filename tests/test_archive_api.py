@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from worldmind.api import create_app
 from worldmind.archives import ArchiveStore
 from worldmind.domain import VERSION
-from .test_api import new, mutate
+from .helpers import new, mutate
 
 
 def test_archive_survives_restart_with_capability_and_readonly_replay(tmp_path):

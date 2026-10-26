@@ -1,13 +1,13 @@
-# Python SDK（0.2.1）
+# Python SDK（0.3.0）
 
-`worldmind.sdk` 是本地 Worldmind HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 README 安装包、构建页面并启动 FastAPI；SDK 使用同一个 Python 环境，无需增加第三方依赖。
+`worldmind.sdk` 是本地 Worldmind HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装包并启动 FastAPI；仅使用 SDK 无需构建前端，也无需额外依赖。
 
 ```bash
 .venv/bin/python -m pip install --no-deps -e .
 .venv/bin/python -m worldmind.cli serve
 ```
 
-Windows 将 Python 路径替换为 `.\.venv\Scripts\python.exe`。从 0.1 更新源码后重新执行 editable 安装，以刷新包版本元数据。
+Windows 将 Python 路径替换为 `.\.venv\Scripts\python.exe`。升级源码后重新执行 editable 安装，以刷新包版本元数据。应用 0.3.0 继续使用 0.2.1 录制协议；SDK 不改写导入记录的协议版本。
 
 ## 完成任务并保存回放
 
@@ -120,4 +120,4 @@ with TestClient(app) as transport:
         session.delete()
 ```
 
-注入的客户端由调用者关闭。它必须连接预期的服务来源，不应共享含其他账号认证的客户端。真实服务默认关闭模型调用；本轮 SDK 测试不调用供应商 API。当前测试中 Starlette 对 TestClient 的 timeout 参数有弃用提示，详见本轮测试报告。
+注入的客户端由调用者关闭。它必须连接预期的服务来源，不应共享含其他账号认证的客户端。真实服务默认关闭模型调用；本轮 SDK 测试不调用供应商 API。测试适配器的已知提示及本轮结果见 [0.3 发布说明](RELEASE_V03.md)。

@@ -1,0 +1,69 @@
+{
+  "app_version": "0.3.0",
+  "recording_protocol": "worldmind-0.2.1/river-1",
+  "date": "2026-10-26",
+  "timezone": "Asia/Shanghai",
+  "baseline_commit": "de8399ec687a51d14e11895124f429940b4f2db2",
+  "environment": {
+    "python": "3.12.14",
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "repository": {
+    "tracked_generated_files": [],
+    "historical_recording_files": 114,
+    "unique_recordings_before": 78,
+    "unique_recordings_after": 82,
+    "historical_records_rewritten": false
+  },
+  "tests": {
+    "before": 392,
+    "after": 336,
+    "warnings": 19,
+    "coverage": {
+      "covered_lines": 1692,
+      "num_statements": 1833,
+      "percent_covered": 92.3076923076923,
+      "percent_covered_display": "92",
+      "missing_lines": 141,
+      "excluded_lines": 0,
+      "percent_statements_covered": 92.3076923076923,
+      "percent_statements_covered_display": "92"
+    },
+    "browser": 11,
+    "format": "passed",
+    "typescript": "passed",
+    "production_build": "passed",
+    "runtime_data_unchanged": true,
+    "historical_file_links": "passed",
+    "temporary_browser_data_released": true
+  },
+  "packaging": {
+    "editable_install": "passed",
+    "wheel_install_and_replay": "passed",
+    "artifacts": [
+      {
+        "file": "worldmind-0.3.0-py3-none-any.whl",
+        "bytes": 39798,
+        "entries": 22,
+        "sha256": "260db1d7037b01b8b4f51870717d1ec9b1f8567130d00a9f470a4da06f7d0c04",
+        "excluded_generated_and_test_files": true
+      },
+      {
+        "file": "worldmind-0.3.0.tar.gz",
+        "bytes": 37084,
+        "entries": 33,
+        "sha256": "eff59966a10ef970b38bee80f7222f20a6fc7ebfda5e78cc0794863c4c574ea6",
+        "excluded_generated_and_test_files": true
+      }
+    ]
+  },
+  "benchmarks": {
+    "generated_recordings": {
+      "v0.1": 14,
+      "v0.2": 36,
+      "v0.2.1": 64
+    },
+    "historical_outputs_modified": false
+  }
+}

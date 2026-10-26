@@ -1,0 +1,3 @@
+# Regression tests depend on the repository's frozen recordings. Keep the full
+# suite in Git; the installable source archive contains the runtime package only.
+prune tests

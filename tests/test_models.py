@@ -8,49 +8,9 @@ import pytest
 from worldmind.domain import Config, canonical
 from worldmind.engine import Engine
 from worldmind.models import Ledger, ModelService
-from worldmind.planner import Budget, decide
-from worldmind.providers import (PROFILES, ProviderError, Settings, build_request,
+from worldmind.providers import (PROFILES, ProviderError, build_request,
                                  parse_proposal, parse_response, usage_of)
-
-
-def settings(name):
-    p = PROFILES[name]
-    return Settings(name, "test-model", p.endpoint or
-                    ("http://localhost:8001/v1/chat/completions" if p.local else
-                     "https://resource.openai.azure.com/openai/deployments/test/chat/completions?api-version=test"),
-                    "fixture-secret", timeout=0.2)
-
-
-def proposal_for(e):
-    actions = decide(e.context(), [], "Full", Budget(3000)).plan
-    return canonical({"actions": [a.model_dump() for a in actions]})
-
-
-def response_for(protocol, text, usage=True):
-    if protocol == "chat":
-        data = {"choices": [{"finish_reason": "stop", "message": {"content": text}}]}
-        if usage:
-            data["usage"] = {"prompt_tokens": 20, "completion_tokens": 10,
-                             "prompt_tokens_details": {"cached_tokens": 3}, "prompt_cache_hit_tokens": 3}
-    elif protocol == "responses":
-        data = {"status": "completed", "output": [{"type": "message",
-                "content": [{"type": "output_text", "text": text}]}]}
-        if usage:
-            data["usage"] = {"input_tokens": 20, "output_tokens": 10}
-    elif protocol == "messages":
-        data = {"stop_reason": "end_turn", "content": [{"type": "text", "text": text}]}
-        if usage:
-            data["usage"] = {"input_tokens": 20, "output_tokens": 10, "cache_read_input_tokens": 3}
-    elif protocol == "gemini":
-        data = {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": text}]}}]}
-        if usage:
-            data["usageMetadata"] = {"promptTokenCount": 20, "candidatesTokenCount": 10,
-                                     "thoughtsTokenCount": 7, "totalTokenCount": 37}
-    else:
-        data = {"done": True, "done_reason": "stop", "message": {"content": text}}
-        if usage:
-            data.update(prompt_eval_count=20, eval_count=10)
-    return data
+from .helpers import proposal_for, response_for, settings
 
 
 @pytest.mark.parametrize("name", list(PROFILES))
@@ -107,9 +67,16 @@ async def test_each_profile_request_auth_parse_audit_and_cache(name, tmp_path):
         await restarted.propose(replace(s, model="other-model"), e.request_context(), e.context())
 
 
-@pytest.mark.parametrize("name", list(PROFILES))
+# Request/auth/endpoint differences are tested for every profile above. Error
+# handling and parsing only vary by protocol, so exercise each parser once.
+PROTOCOL_EXAMPLES = {}
+for name, profile in PROFILES.items():
+    PROTOCOL_EXAMPLES.setdefault(profile.protocol, name)
+
+
+@pytest.mark.parametrize("name", PROTOCOL_EXAMPLES.values())
 @pytest.mark.parametrize("mode", ["http", "invalid", "missing_usage"])
-async def test_each_profile_errors_and_unknown_usage(name, mode, tmp_path):
+async def test_each_protocol_errors_and_unknown_usage(name, mode, tmp_path):
     e, s = Engine(), settings(name)
     calls = 0
     async def handler(req):
