@@ -1,8 +1,8 @@
 # Worldmind · 界行
 
-**0.3.0** 是可运行、可观察、可回放的 NPC 行动规划演示。角色在有限认知下送药；阻断道路、移除药材或改变目标后，可以观察 Full 重规划与 Local 局部修复，并验证每一步执行。
+**0.4.0** 是可运行、可观察、可回放的 NPC 行动规划演示。新增双角色协作：医生提出药材需求，快递员自主取材和交接，医生收到物资后制药送药。可切换角色认知，干预道路与资源，观察 Full 重规划与 Local 局部修复。
 
-本版整理公共规划逻辑、会话资源生命周期、仓库和测试结构。默认使用本地符号规划，无需 API Key，不调用收费模型。交付为源码和本地演示；未部署公开服务，未验证真实供应商联通。当前开发分支为 `codex/release-v0.3`，范围与验证见 [0.3 发布说明](docs/RELEASE_V03.md) 和 [版本记录](CHANGELOG.md)。
+默认使用本地符号规划，无需 API Key，不调用收费模型。交付为源码和本地演示；未部署公开服务，未验证真实供应商联通。当前开发分支为 `codex/cooperation-v0.4`，范围与验证见 [0.4 协作协议与发布说明](docs/RELEASE_V04.md) 和 [版本记录](CHANGELOG.md)。
 
 ## 快速启动
 
@@ -36,6 +36,10 @@ npm --prefix web run build
 
 ## 体验与存档
 
+选择「双角色协作」，单步查看工作单从提议到接受、交接的变化。切换「关注角色」查看医生与快递员各自收到的消息、计划、库存与等待原因。可按条款取消订单，或在取材、交接、制作期间中断动作。「新协作场景配置」可调整订单期限、消息延迟和商人取材时点；点击按钮建立新场景。
+
+药材交接完成前不会进入医生库存；制作开始即消耗材料，中断不退款。订单期限包含截止 tick 的实际交付。协作场景使用离线规划，模型入口暂不开放。单角色原演示仍可按以下步骤体验：
+
 1. 选择 Local，单步一次，再阻断“东桥 ↔ 患者住处”。切换世界/角色视图，观察真实道路与角色已知信息的差别。
 2. 运行并查看替代路线、观察来源、动作和预算；Full / Local 对照从相同初态接受同一次断桥干预。
 3. 导出 JSON，或在“回放存档”区保存；恢复后先进入校验回放，选择游标并点击“从此处继续”，再单步或运行。源存档不变，已消耗材料和预算不会重置。
@@ -44,7 +48,7 @@ npm --prefix web run build
 
 浏览器把存档凭证保存在当前站点的 `localStorage`；清除站点数据后无法自动找回。凭证用于恢复和删除，需妥善保存。跨设备优先导出 JSON；服务器重启后的恢复取决于存档文件和凭证仍在。
 
-**应用版本与录制协议独立。** 0.3.0 没有改变动作或规划语义，新记录仍使用 `worldmind-0.2.1/river-1`；支持 0.1、0.2、0.2.1 三种录制协议。旧记录按原算法校验和续跑，不改写版本标签或哈希。详细容量、并发与兼容边界见 [实现协议](docs/IMPLEMENTATION.md)。
+**应用版本与录制协议独立。** 协作场景使用 `worldmind-0.4.0/cooperation-1`，单角色场景继续使用 `worldmind-0.2.1/river-1`。支持原 0.1、0.2、0.2.1 记录按原动作、执行和规划规则校验及续跑，不改写版本标签或哈希。详细容量、并发与兼容边界见 [实现协议](docs/IMPLEMENTATION.md)。
 
 ## CLI 与 Python SDK
 
@@ -54,6 +58,8 @@ npm --prefix web run build
 .venv/bin/python -m worldmind.cli run --policy Local --output var/demo.json
 .venv/bin/python -m worldmind.cli replay var/demo.json
 .venv/bin/python -m worldmind.cli eval --output var/comparison.json
+.venv/bin/python -m worldmind.cli run --scenario cooperation --output var/cooperation.json
+.venv/bin/python -m worldmind.cli eval --scenario cooperation --output var/cooperation-pair.json
 ```
 
 `run` 和 `eval` 默认使用第 1 tick 断桥场景。同步 SDK 可控制已启动的服务：
@@ -66,6 +72,8 @@ with WorldmindClient("http://127.0.0.1:8000") as client:
     print(session.step()["tick"])
     session.delete()
 ```
+
+协作会话可通过 `client.create_session({"scenario": "cooperation", "policy": "Local"})` 创建，`session.actor("doctor")` 获取医生投影。原存档接口同样支持协作记录、游标续跑和独立分支；详情见 SDK 指南。
 
 会话、存档、续跑、冲突与显式重试见 [SDK 指南](docs/SDK.md)。SDK 不自动重试或发起模型调用。
 

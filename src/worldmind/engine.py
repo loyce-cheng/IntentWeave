@@ -13,7 +13,8 @@ from .domain import (Action, Config, GOALS, INITIAL_STOCK, PLACES, ROADS, VERSIO
 from .planner import Budget, Context
 from . import planner
 from .compat import planner_v01, planner_v02
-from .version import LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION, SUPPORTED_RECORDING_VERSIONS
+from .version import (LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION,
+                      RIVER_RECORDING_VERSIONS as SUPPORTED_RECORDING_VERSIONS)
 
 
 class Command(StrictModel):

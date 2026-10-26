@@ -11,8 +11,10 @@ from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 
-from .domain import Config, canonical
+from .domain import canonical, digest
 from .engine import Engine
+from .runtime import SessionConfig, make_engine
+from .cooperation import CooperationEngine
 
 
 class SessionError(Exception):
@@ -91,6 +93,9 @@ class Session:
             raise SessionError(409, "import_recording_first")
         self.pause()
         self.epoch += 1
+        if isinstance(self.engine, CooperationEngine):
+            self.engine.lineage = {"parent_recording_hash": digest(self.recording),
+                                   "cursor": len(self.engine.trace)}
         self.recording = self.replay_result = None
         self.model_status = {"status": "idle", "usage": None}
         self.revision += 1
@@ -127,7 +132,7 @@ class SessionRegistry:
         s.touched = self.clock()
         return s
 
-    def create(self, config: Config) -> tuple[str, Session]:
+    def create(self, config: SessionConfig) -> tuple[str, Session]:
         now = self.clock()
         for sid, s in list(self.sessions.items()):
             if now - s.touched > self.ttl:
@@ -138,6 +143,6 @@ class SessionRegistry:
             raise SessionError(429, "session_limit")
         self.creation_times.append(now)
         sid = secrets.token_urlsafe(18)
-        s = Session(Engine(config), touched=now)
+        s = Session(make_engine(config), touched=now)
         self.sessions[sid] = s
         return sid, s

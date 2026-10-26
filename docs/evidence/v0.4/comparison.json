@@ -1,0 +1,800 @@
+{
+  "command": ".venv/bin/python scripts/benchmark_v04.py",
+  "recording_paths_relative_to": "repository_root",
+  "results": [
+    {
+      "case": "normal",
+      "policy": "Full",
+      "options": {},
+      "schedule": [],
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.48657600000000006,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 5.853812999703223,
+      "recording": "var/benchmarks/v0.4/recordings/normal-Full.json"
+    },
+    {
+      "case": "normal",
+      "policy": "Local",
+      "options": {},
+      "schedule": [],
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.42307,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 4.445443999429699,
+      "recording": "var/benchmarks/v0.4/recordings/normal-Local.json"
+    },
+    {
+      "case": "hidden_bridge",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          1,
+          "block",
+          "bridge|home"
+        ]
+      ],
+      "status": "success",
+      "tick": 13,
+      "metrics": {
+        "expansions": 39,
+        "validations": 29,
+        "budget_used": 68,
+        "decisions": 4,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 12,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.517816,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 5.212208001466934,
+      "recording": "var/benchmarks/v0.4/recordings/hidden_bridge-Full.json"
+    },
+    {
+      "case": "hidden_bridge",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          1,
+          "block",
+          "bridge|home"
+        ]
+      ],
+      "status": "success",
+      "tick": 13,
+      "metrics": {
+        "expansions": 38,
+        "validations": 49,
+        "budget_used": 87,
+        "decisions": 4,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 12,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.524603,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 5.332838998583611,
+      "recording": "var/benchmarks/v0.4/recordings/hidden_bridge-Local.json"
+    },
+    {
+      "case": "competition",
+      "policy": "Full",
+      "options": {
+        "merchant_takes_at": 2
+      },
+      "schedule": [
+        [
+          0,
+          "block",
+          "garden|warehouse"
+        ]
+      ],
+      "status": "success",
+      "tick": 14,
+      "metrics": {
+        "expansions": 49,
+        "validations": 34,
+        "budget_used": 83,
+        "decisions": 5,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 13,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.627563,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 10,
+      "replay_wall_ms": 5.817676999868127,
+      "recording": "var/benchmarks/v0.4/recordings/competition-Full.json"
+    },
+    {
+      "case": "competition",
+      "policy": "Local",
+      "options": {
+        "merchant_takes_at": 2
+      },
+      "schedule": [
+        [
+          0,
+          "block",
+          "garden|warehouse"
+        ]
+      ],
+      "status": "success",
+      "tick": 13,
+      "metrics": {
+        "expansions": 37,
+        "validations": 47,
+        "budget_used": 84,
+        "decisions": 4,
+        "repairs": 1,
+        "fallbacks": 0,
+        "actions": 13,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.544171,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 9,
+      "replay_wall_ms": 5.325227000867017,
+      "recording": "var/benchmarks/v0.4/recordings/competition-Local.json"
+    },
+    {
+      "case": "short_evidence",
+      "policy": "Full",
+      "options": {
+        "evidence_ttl": 2
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 16,
+      "metrics": {
+        "expansions": 85,
+        "validations": 35,
+        "budget_used": 120,
+        "decisions": 8,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 15,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 1.0727309999999999,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 10,
+      "replay_wall_ms": 6.348836002871394,
+      "recording": "var/benchmarks/v0.4/recordings/short_evidence-Full.json"
+    },
+    {
+      "case": "short_evidence",
+      "policy": "Local",
+      "options": {
+        "evidence_ttl": 2
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 16,
+      "metrics": {
+        "expansions": 85,
+        "validations": 35,
+        "budget_used": 120,
+        "decisions": 8,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 15,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.992082,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 10,
+      "replay_wall_ms": 6.597970001166686,
+      "recording": "var/benchmarks/v0.4/recordings/short_evidence-Local.json"
+    },
+    {
+      "case": "delayed_messages",
+      "policy": "Full",
+      "options": {
+        "message_delay": 5
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 15,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.454749,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 11,
+      "replay_wall_ms": 5.307481002091663,
+      "recording": "var/benchmarks/v0.4/recordings/delayed_messages-Full.json"
+    },
+    {
+      "case": "delayed_messages",
+      "policy": "Local",
+      "options": {
+        "message_delay": 5
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 15,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.40151000000000003,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 11,
+      "replay_wall_ms": 5.645789002301171,
+      "recording": "var/benchmarks/v0.4/recordings/delayed_messages-Local.json"
+    },
+    {
+      "case": "rejected_order",
+      "policy": "Full",
+      "options": {
+        "accept_order": false
+      },
+      "schedule": [],
+      "status": "unknown",
+      "tick": 2,
+      "metrics": {
+        "expansions": 3,
+        "validations": 1,
+        "budget_used": 4,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 1,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.052588,
+      "order_status": "rejected",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 1.0754069990071002,
+      "recording": "var/benchmarks/v0.4/recordings/rejected_order-Full.json"
+    },
+    {
+      "case": "rejected_order",
+      "policy": "Local",
+      "options": {
+        "accept_order": false
+      },
+      "schedule": [],
+      "status": "unknown",
+      "tick": 2,
+      "metrics": {
+        "expansions": 3,
+        "validations": 1,
+        "budget_used": 4,
+        "decisions": 1,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 1,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.033379,
+      "order_status": "rejected",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 1.124711001466494,
+      "recording": "var/benchmarks/v0.4/recordings/rejected_order-Local.json"
+    },
+    {
+      "case": "exact_deadline",
+      "policy": "Full",
+      "options": {
+        "order_deadline": 7
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.43062399999999995,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 4.280686000129208,
+      "recording": "var/benchmarks/v0.4/recordings/exact_deadline-Full.json"
+    },
+    {
+      "case": "exact_deadline",
+      "policy": "Local",
+      "options": {
+        "order_deadline": 7
+      },
+      "schedule": [],
+      "status": "success",
+      "tick": 11,
+      "metrics": {
+        "expansions": 31,
+        "validations": 21,
+        "budget_used": 52,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 10,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.39846600000000004,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 4.430883000168251,
+      "recording": "var/benchmarks/v0.4/recordings/exact_deadline-Local.json"
+    },
+    {
+      "case": "missed_deadline",
+      "policy": "Full",
+      "options": {
+        "order_deadline": 6
+      },
+      "schedule": [],
+      "status": "unknown",
+      "tick": 7,
+      "metrics": {
+        "expansions": 29,
+        "validations": 1,
+        "budget_used": 30,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 1,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.277144,
+      "order_status": "expired",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 2.989575001265621,
+      "recording": "var/benchmarks/v0.4/recordings/missed_deadline-Full.json"
+    },
+    {
+      "case": "missed_deadline",
+      "policy": "Local",
+      "options": {
+        "order_deadline": 6
+      },
+      "schedule": [],
+      "status": "unknown",
+      "tick": 7,
+      "metrics": {
+        "expansions": 29,
+        "validations": 1,
+        "budget_used": 30,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 1,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.281269,
+      "order_status": "expired",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 3.056685000046855,
+      "recording": "var/benchmarks/v0.4/recordings/missed_deadline-Local.json"
+    },
+    {
+      "case": "no_materials",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          0,
+          "remove",
+          "garden"
+        ],
+        [
+          0,
+          "remove",
+          "warehouse"
+        ]
+      ],
+      "status": "unknown",
+      "tick": 31,
+      "metrics": {
+        "expansions": 23,
+        "validations": 9,
+        "budget_used": 32,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 3,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.27532,
+      "order_status": "expired",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 10.775352002383443,
+      "recording": "var/benchmarks/v0.4/recordings/no_materials-Full.json"
+    },
+    {
+      "case": "no_materials",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          0,
+          "remove",
+          "garden"
+        ],
+        [
+          0,
+          "remove",
+          "warehouse"
+        ]
+      ],
+      "status": "unknown",
+      "tick": 31,
+      "metrics": {
+        "expansions": 23,
+        "validations": 27,
+        "budget_used": 50,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 3,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.360538,
+      "order_status": "expired",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 10.94997499967576,
+      "recording": "var/benchmarks/v0.4/recordings/no_materials-Local.json"
+    },
+    {
+      "case": "cancel_handover",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          6,
+          "order_cancel",
+          "supply-1"
+        ]
+      ],
+      "status": "unknown",
+      "tick": 7,
+      "metrics": {
+        "expansions": 16,
+        "validations": 11,
+        "budget_used": 27,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.29067500000000007,
+      "order_status": "cancelled",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 3.133240999886766,
+      "recording": "var/benchmarks/v0.4/recordings/cancel_handover-Full.json"
+    },
+    {
+      "case": "cancel_handover",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          6,
+          "order_cancel",
+          "supply-1"
+        ]
+      ],
+      "status": "unknown",
+      "tick": 7,
+      "metrics": {
+        "expansions": 16,
+        "validations": 11,
+        "budget_used": 27,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 6,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.23809399999999997,
+      "order_status": "cancelled",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 3.203866999683669,
+      "recording": "var/benchmarks/v0.4/recordings/cancel_handover-Local.json"
+    },
+    {
+      "case": "interrupt_craft",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          7,
+          "interrupt",
+          "doctor"
+        ]
+      ],
+      "status": "deadline_missed",
+      "tick": 60,
+      "metrics": {
+        "expansions": 31,
+        "validations": 15,
+        "budget_used": 46,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 7,
+        "consumed": 1,
+        "produced": 0
+      },
+      "cpu_ms": 0.37044299999999997,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 19.576074999349657,
+      "recording": "var/benchmarks/v0.4/recordings/interrupt_craft-Full.json"
+    },
+    {
+      "case": "interrupt_craft",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          7,
+          "interrupt",
+          "doctor"
+        ]
+      ],
+      "status": "deadline_missed",
+      "tick": 60,
+      "metrics": {
+        "expansions": 31,
+        "validations": 15,
+        "budget_used": 46,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 7,
+        "consumed": 1,
+        "produced": 0
+      },
+      "cpu_ms": 0.379506,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 18.75282699984382,
+      "recording": "var/benchmarks/v0.4/recordings/interrupt_craft-Local.json"
+    },
+    {
+      "case": "reserved_material_removed",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          3,
+          "remove",
+          "garden"
+        ]
+      ],
+      "status": "success",
+      "tick": 14,
+      "metrics": {
+        "expansions": 42,
+        "validations": 30,
+        "budget_used": 72,
+        "decisions": 4,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 13,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.577332,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 10,
+      "replay_wall_ms": 5.663824998919154,
+      "recording": "var/benchmarks/v0.4/recordings/reserved_material_removed-Full.json"
+    },
+    {
+      "case": "reserved_material_removed",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          3,
+          "remove",
+          "garden"
+        ]
+      ],
+      "status": "success",
+      "tick": 14,
+      "metrics": {
+        "expansions": 42,
+        "validations": 30,
+        "budget_used": 72,
+        "decisions": 4,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 13,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.5379919999999999,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 10,
+      "replay_wall_ms": 5.904498000745662,
+      "recording": "var/benchmarks/v0.4/recordings/reserved_material_removed-Local.json"
+    },
+    {
+      "case": "change_final_goal",
+      "policy": "Full",
+      "options": {},
+      "schedule": [
+        [
+          6,
+          "goal",
+          "medicine_clinic"
+        ]
+      ],
+      "status": "success",
+      "tick": 10,
+      "metrics": {
+        "expansions": 29,
+        "validations": 17,
+        "budget_used": 46,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 9,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.385666,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 4.135037001105957,
+      "recording": "var/benchmarks/v0.4/recordings/change_final_goal-Full.json"
+    },
+    {
+      "case": "change_final_goal",
+      "policy": "Local",
+      "options": {},
+      "schedule": [
+        [
+          6,
+          "goal",
+          "medicine_clinic"
+        ]
+      ],
+      "status": "success",
+      "tick": 10,
+      "metrics": {
+        "expansions": 29,
+        "validations": 17,
+        "budget_used": 46,
+        "decisions": 3,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 9,
+        "consumed": 1,
+        "produced": 1
+      },
+      "cpu_ms": 0.384964,
+      "order_status": "fulfilled",
+      "fulfilled_tick": 7,
+      "replay_wall_ms": 4.827418000786565,
+      "recording": "var/benchmarks/v0.4/recordings/change_final_goal-Local.json"
+    },
+    {
+      "case": "limited_budget",
+      "policy": "Full",
+      "options": {
+        "total_budget": 10
+      },
+      "schedule": [],
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 10,
+        "validations": 0,
+        "budget_used": 10,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.12095099999999999,
+      "order_status": "in_progress",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 0.922357001400087,
+      "recording": "var/benchmarks/v0.4/recordings/limited_budget-Full.json"
+    },
+    {
+      "case": "limited_budget",
+      "policy": "Local",
+      "options": {
+        "total_budget": 10
+      },
+      "schedule": [],
+      "status": "budget_exhausted",
+      "tick": 1,
+      "metrics": {
+        "expansions": 10,
+        "validations": 0,
+        "budget_used": 10,
+        "decisions": 2,
+        "repairs": 0,
+        "fallbacks": 0,
+        "actions": 0,
+        "consumed": 0,
+        "produced": 0
+      },
+      "cpu_ms": 0.111667,
+      "order_status": "in_progress",
+      "fulfilled_tick": null,
+      "replay_wall_ms": 1.0016970009019133,
+      "recording": "var/benchmarks/v0.4/recordings/limited_budget-Local.json"
+    }
+  ]
+}

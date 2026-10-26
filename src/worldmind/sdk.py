@@ -15,6 +15,7 @@ from uuid import uuid4
 import httpx
 
 from .domain import Config
+from .cooperation_domain import CooperationConfig, ACTORS
 
 
 class SDKError(Exception):
@@ -121,8 +122,8 @@ class WorldmindClient:
     def health(self) -> dict:
         return self._request("GET", "/health")
 
-    def create_session(self, config: Config | dict | None = None) -> WorldmindSession:
-        payload = config.model_dump() if isinstance(config, Config) else (config or {})
+    def create_session(self, config: Config | CooperationConfig | dict | None = None) -> WorldmindSession:
+        payload = config.model_dump() if isinstance(config, (Config, CooperationConfig)) else (config or {})
         data = self._request("POST", "/sessions", json=payload)
         return self.attach_session(data["id"], data["token"])
 
@@ -156,8 +157,10 @@ class WorldmindSession:
     def view(self) -> dict:
         return self._request("GET")
 
-    def actor(self) -> dict:
-        return self._request("GET", "/actor")
+    def actor(self, actor_id: str = "courier") -> dict:
+        if actor_id not in ACTORS:
+            raise ValueError("unknown actor")
+        return self._request("GET", "/actor" if actor_id == "courier" else "/actor?actor_id=" + actor_id)
 
     def command(self, kind: str, target: str | None = None, *,
                 command_id: str | None = None, expected_revision: int | None = None) -> dict:
