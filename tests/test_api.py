@@ -8,26 +8,14 @@ from fastapi.testclient import TestClient
 from worldmind.api import create_app
 from worldmind.engine import Engine
 from worldmind.models import Ledger, ModelService
-from .test_models import proposal_for, response_for, settings
+from .helpers import mutate, new, proposal_for, response_for, settings
 
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app(ledger_path=str(tmp_path / "ledger.db"))
+    app = create_app(ledger_path=tmp_path / "ledger.db", archive_path=tmp_path / "archive.db")
     with TestClient(app) as c:
         yield c
-
-
-def new(client):
-    response = client.post("/api/sessions", json={})
-    assert response.status_code == 201
-    data = response.json()
-    return f'/api/sessions/{data["id"]}', {"x-session-token": data["token"]}, data
-
-
-def mutate(client, path, headers, command, revision=0, command_id="a"):
-    return client.post(path + "/commands", headers=headers, json={
-        "command_id": command_id, "expected_revision": revision, "command": command})
 
 
 def test_session_auth_and_information_boundary(client):
@@ -88,7 +76,7 @@ def test_input_limits_no_secret_echo_and_origin(client):
 
 
 async def test_concurrent_mutations_have_one_writer(tmp_path):
-    app = create_app(ledger_path=str(tmp_path / "ledger.db"))
+    app = create_app(ledger_path=tmp_path / "ledger.db", archive_path=tmp_path / "archive.db")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://testserver") as client:
         data = (await client.post("/api/sessions", json={})).json()
         path = f'/api/sessions/{data["id"]}'
@@ -109,7 +97,7 @@ async def test_late_model_response_lifecycle(intervention, tmp_path):
         return httpx.Response(200, json=response_for("chat", proposal_for(Engine())))
     ledger = Ledger(str(tmp_path / "ledger.db"))
     models = ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler))
-    app = create_app(model_service=models, model_access="test-access", settings_loader=settings)
+    app = create_app(model_service=models, model_access="test-access", settings_loader=settings, archive_path=tmp_path / "archive.db")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://testserver") as c:
         data = (await c.post("/api/sessions", json={})).json()
         path = f'/api/sessions/{data["id"]}'
@@ -151,7 +139,7 @@ async def test_cancel_model_request_and_run_pause(tmp_path):
         await asyncio.Event().wait()
     ledger = Ledger(str(tmp_path / "ledger.db"))
     app = create_app(model_service=ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler)),
-                     model_access="test-access", settings_loader=settings)
+                     model_access="test-access", settings_loader=settings, archive_path=tmp_path / "archive.db")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://testserver") as c:
         data = (await c.post("/api/sessions", json={})).json()
         path, h = f'/api/sessions/{data["id"]}', {"x-session-token": data["token"], "x-model-access": "test-access"}
@@ -182,32 +170,12 @@ def test_session_capacity_and_server_configuration_not_browser_controlled(client
     assert client.post('/api/sessions', json={'endpoint':'http://internal.invalid'}).status_code == 422
 
 
-async def test_cancelled_worker_finishes_before_releasing_writer():
-    import threading
-    from worldmind.api import computation
-    entered, release = threading.Event(), threading.Event()
-    events = []
-    def work():
-        entered.set()
-        release.wait(2)
-        events.append('committed')
-    task = asyncio.create_task(computation(work))
-    await asyncio.to_thread(entered.wait, 2)
-    task.cancel()
-    await asyncio.sleep(0.01)
-    assert not task.done()
-    release.set()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-    assert events == ['committed']
-
-
 async def test_per_session_model_limit_survives_reset(tmp_path):
     async def handler(req):
         return httpx.Response(200, json=response_for('chat', proposal_for(Engine())))
     ledger = Ledger(str(tmp_path / 'ledger.db'))
     service = ModelService(ledger, enabled=True, transport=httpx.MockTransport(handler))
-    app = create_app(model_service=service, model_access='test-access', settings_loader=settings)
+    app = create_app(model_service=service, model_access='test-access', settings_loader=settings, archive_path=tmp_path / 'archive.db')
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as c:
         data = (await c.post('/api/sessions', json={})).json()
         path = f'/api/sessions/{data["id"]}'

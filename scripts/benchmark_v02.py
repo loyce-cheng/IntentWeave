@@ -72,5 +72,5 @@ def run(output: Path) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("docs/evidence/v0.2"))
+    parser.add_argument("--output", type=Path, default=Path("var/benchmarks/v0.2"))
     run(parser.parse_args().output)

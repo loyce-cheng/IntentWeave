@@ -26,14 +26,11 @@ export default defineConfig({
   },
   reporter: [["list"], ["json", { outputFile: "test-results/results.json" }]],
   webServer: {
-    command: `"${python}" -m worldmind.cli serve`,
+    command: `"${python}" scripts/e2e_server.py`,
     cwd: root,
-    env: {
-      WORLDMIND_ENABLE_MODELS: "0",
-      WORLDMIND_LEDGER: path.join(root, "var/e2e-ledger.sqlite3"),
-    },
     url: "http://127.0.0.1:8000/api/health",
     reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGINT", timeout: 5000 },
     timeout: 30000,
   },
 });

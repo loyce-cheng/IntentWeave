@@ -168,7 +168,7 @@ async def test_cancel_after_proposal_write_keeps_revision_and_audit_consistent(t
 
     from worldmind.api import ModelRequest
     from worldmind.models import Ledger, ModelService
-    from .test_models import proposal_for, response_for, settings
+    from .helpers import proposal_for, response_for, settings
 
     entered, release = threading.Event(), threading.Event()
     ledger = Ledger(str(tmp_path / "ledger.db"))
