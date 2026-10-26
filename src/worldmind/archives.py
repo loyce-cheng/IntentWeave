@@ -18,7 +18,8 @@ from pathlib import Path
 from typing import Callable
 
 from .domain import canonical
-from .engine import Engine, Recording, replay
+from .engine import Engine
+from .runtime import recording_adapter, replay
 
 
 class ArchiveError(Exception):
@@ -146,7 +147,7 @@ class ArchiveStore:
 
     def _recording(self, data: dict) -> tuple[dict, bytes, Engine, dict]:
         try:
-            value = Recording.model_validate(data).model_dump(exclude_none=True)
+            value = recording_adapter.validate_python(data).model_dump(exclude_none=True)
             payload = canonical(value).encode("utf-8")
         except (ValueError, TypeError, RecursionError, UnicodeError):
             raise InvalidArchive("invalid_archive_recording") from None

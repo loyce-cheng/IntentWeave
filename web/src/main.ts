@@ -16,6 +16,31 @@ type Evidence = {
   observed_tick: number;
   valid_until: number;
 };
+type Order = {
+  order_id: string;
+  status: string;
+  version: number;
+  deadline_tick: number;
+  fulfilled_tick: number | null;
+  breached: boolean;
+};
+type ActorView = {
+  actor_id?: string;
+  context: {
+    state: State;
+    knowledge_version: number;
+    present?: string[];
+    orders?: Record<string, Order>;
+    goal?: { kind: string; destination: string; deadline: number };
+  };
+  evidence: Record<string, Evidence>;
+  plan: Action[];
+  active: { action: Action; due_tick: number } | null;
+  plan_version: number;
+  status?: string;
+  waiting?: { reason: string; until: number } | null;
+  last_repair?: View["last_repair"];
+};
 type View = {
   tick: number;
   revision: number;
@@ -25,14 +50,11 @@ type View = {
   state_hash: string;
   goal: string;
   world: State;
-  config: { policy: string };
-  actor: {
-    context: { state: State; knowledge_version: number };
-    evidence: Record<string, Evidence>;
-    plan: Action[];
-    active: { action: Action; due_tick: number } | null;
-    plan_version: number;
-  };
+  config: { policy: string; scenario?: string };
+  actor: ActorView;
+  actors?: Record<string, ActorView>;
+  orders?: Order[];
+  claims?: Record<string, { resource: string; expires: number }>;
   metrics: Record<string, number>;
   last_repair: {
     outcome?: string;
@@ -85,6 +107,13 @@ const MAX_POLL_FAILURES = 3;
 let archives: ArchiveReceipt[] = [];
 let archiveStorageReady = true;
 let perspective = "world";
+let selectedActor = "courier";
+const actorNames: Record<string, string> = {
+  courier: "快递员",
+  doctor: "医生",
+  merchant: "商人",
+};
+const focus = () => view.actors?.[selectedActor] ?? view.actor;
 let pair: Pair | null = null;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -112,6 +141,14 @@ const statusLabel: Record<string, string> = {
   idle: "未调用",
   accepted: "提议已接纳",
   discarded_stale: "旧回复已丢弃",
+  waiting: "等待条件满足",
+  deadline_missed: "错过最终期限",
+  proposed: "已提议",
+  in_progress: "履行中",
+  fulfilled: "已履行",
+  expired: "已到期",
+  rejected: "已拒绝",
+  withdrawn: "已撤回",
 };
 const actionLabel: Record<string, string> = {
   move: "移动",
@@ -120,8 +157,9 @@ const actionLabel: Record<string, string> = {
   deliver: "交付",
   inspect: "检查",
   wait: "等待",
+  give: "交接药材",
 };
-const label = (p: string) => catalog.labels[p] ?? p;
+const label = (p: string) => catalog.labels[p] ?? actorNames[p] ?? p;
 
 $("app").innerHTML = `
 <aside class="sidebar">
@@ -136,16 +174,29 @@ $("app").innerHTML = `
   <section class="intro"><div><div class="eyebrow">OBSERVABLE NPC PLANNING</div><h1>世界改变，计划继续。</h1><p>改变道路与资源，观察角色如何发现问题、修复计划，并验证每一步。</p></div><div class="session-indicator"><span class="dot"></span><span id="mode">离线实时运行</span></div></section>
   <div id="error" role="alert" hidden></div>
   <section class="toolbar" aria-label="模拟控制">
+    <label>场景<select id="scenario"><option value="river">单角色送药</option><option value="cooperation">双角色协作</option></select></label>
     <label>规划策略<select id="policy"><option>Local</option><option>Full</option></select></label>
     <label class="goal-select">当前目标<select id="goal"></select></label>
     <button id="changeGoal">改变目标</button><span class="divider"></span>
     <button id="step">单步 →</button><button id="run" class="primary">▶ 运行</button><button id="pause">暂停</button><button id="reset">↺ 重置</button><button id="cancel" class="quiet">取消任务</button>
   </section>
+  <section id="cooperation-panel" class="panel lower" hidden aria-label="协作与工作单">
+    <div class="panel-head"><h2>协作与工作单</h2><label>关注角色<select id="actor-select"><option value="courier">快递员</option><option value="doctor">医生</option><option value="merchant">商人（固定规则）</option></select></label></div>
+    <p class="muted">医生下单 → 快递员取材与交接 → 医生制药送药。预计到货不等于已经拥有材料。</p>
+    <div id="orders"></div><div id="actor-waiting" role="status"></div>
+    <div class="model-controls"><button id="cancel-order">按条款取消订单</button><button id="interrupt-actor">中断当前角色动作</button></div>
+    <details><summary>新协作场景配置</summary><div class="model-controls">
+      <label>订单期限 tick<input id="order-deadline" type="number" min="1" max="500" value="30" /></label>
+      <label>消息延迟 tick<input id="message-delay" type="number" min="1" max="20" value="1" /></label>
+      <label>商人取材 tick（0 关闭）<input id="merchant-tick" type="number" min="0" max="500" value="0" /></label>
+      <button id="apply-cooperation">按配置开始新场景</button>
+    </div></details>
+  </section>
   <section class="metrics" id="metrics" aria-label="资源指标"></section>
   <div class="workspace-grid">
     <section class="panel map-panel"><div class="panel-head"><div><span class="index">01</span><h2>河谷地图</h2></div><select id="perspective" aria-label="地图视角"><option value="world">世界真相 · 特权调试</option><option value="actor">角色已知信息</option></select></div>
       <div id="map" role="img" aria-label="河谷区域、道路与角色位置"></div>
-      <div class="background-roles">医生：诊所接收交付 · 商人：仓库固定规则（默认等待）</div><div class="map-legend"><span><i class="line"></i>通行</span><span><i class="line blocked"></i>阻断</span><span><i class="line unknown"></i>未知</span><span><i class="actor-dot"></i>焦点快递员</span></div>
+      <div class="background-roles" id="role-summary">医生：诊所接收交付 · 商人：仓库固定规则（默认等待）</div><div class="map-legend"><span><i class="line"></i>通行</span><span><i class="line blocked"></i>阻断</span><span><i class="line unknown"></i>未知</span><span><i class="actor-dot"></i>关注角色</span></div>
       <div class="interventions"><div><strong>改变世界</strong><small>远处的变化不会立即进入角色认知</small></div><div class="intervention-row"><label class="sr-only" for="road">选择道路</label><select id="road"></select><button id="block">阻断道路</button></div><div class="intervention-row"><label class="sr-only" for="material">选择材料位置</label><select id="material"><option value="garden">药圃药材</option><option value="warehouse">仓库药材</option></select><button id="remove">移除材料</button></div></div>
     </section>
     <section class="panel plan-panel"><div class="panel-head"><div><span class="index">02</span><h2>计划与恢复</h2></div><span id="plan-version" class="badge"></span></div><div id="plan"></div></section>
@@ -275,6 +326,18 @@ async function createSession() {
       body: JSON.stringify({
         policy: $<HTMLSelectElement>("policy").value,
         goal: $<HTMLSelectElement>("goal").value,
+        ...($<HTMLSelectElement>("scenario").value === "cooperation"
+          ? {
+              scenario: "cooperation",
+              order_deadline: Number(
+                $<HTMLInputElement>("order-deadline").value,
+              ),
+              message_delay: Number($<HTMLInputElement>("message-delay").value),
+              merchant_takes_at: Number(
+                $<HTMLInputElement>("merchant-tick").value,
+              ),
+            }
+          : {}),
       }),
     },
   );
@@ -324,7 +387,11 @@ const positions: Record<string, [number, number]> = {
 function map() {
   // The response already contains the authoritative actor-only projection.
   // Reading it avoids a second request and a map from a different revision.
-  const s = perspective === "world" ? view.world : view.actor.context.state;
+  const actor = focus();
+  const s =
+    perspective === "world"
+      ? { ...view.world, location: actor.context.state.location }
+      : actor.context.state;
   const roads = catalog.roads
     .map((r, i) => {
       const [a, b] = r.split("|");
@@ -338,13 +405,46 @@ function map() {
     .map((p, i) => {
       const [x, y] = positions[p];
       const active = p === s.location;
-      return `<g class="node ${active ? "current" : ""}"><circle cx="${x}" cy="${y}" r="28"/><text x="${x}" y="${y + 5}" class="node-symbol">${p === "clinic" ? "✚" : p === "workshop" ? "⚒" : p === "home" ? "⌂" : p === "bridge" ? "⌁" : p === "ferry" ? "≈" : "◇"}</text><text x="${x}" y="${y + 48}" class="node-name">${esc(label(p))}</text><text x="${x}" y="${y + 65}" class="node-stock">药材 ${s.stock[i] ?? "未知"}</text>${active ? `<rect x="${x - 28}" y="${y - 53}" width="56" height="20" rx="10" class="courier-tag"/><text x="${x}" y="${y - 39}" class="courier-text">快递员</text>` : ""}</g>`;
+      const occupants = view.actors
+        ? perspective === "world"
+          ? Object.entries(view.actors)
+              .filter(([, a]) => a.context.state.location === p)
+              .map(([id]) => label(id))
+          : active
+            ? [selectedActor, ...(actor.context.present ?? [])].map(label)
+            : []
+        : active
+          ? ["快递员"]
+          : [];
+      return `<g class="node ${active ? "current" : ""}"><circle cx="${x}" cy="${y}" r="28"/><text x="${x}" y="${y + 5}" class="node-symbol">${p === "clinic" ? "✚" : p === "workshop" ? "⚒" : p === "home" ? "⌂" : p === "bridge" ? "⌁" : p === "ferry" ? "≈" : "◇"}</text><text x="${x}" y="${y + 48}" class="node-name">${esc(label(p))}</text><text x="${x}" y="${y + 65}" class="node-stock">药材 ${s.stock[i] ?? "未知"}</text>${occupants.length ? `<rect x="${x - 65}" y="${y - 53}" width="130" height="20" rx="10" class="courier-tag"/><text x="${x}" y="${y - 39}" class="courier-text">${esc(occupants.join(" · "))}</text>` : ""}</g>`;
     })
     .join("");
   $("map").innerHTML =
     `<svg viewBox="0 0 730 390" aria-hidden="true"><defs><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#dfe4da"/></pattern></defs><rect width="730" height="390" fill="url(#dots)"/><path d="M365 -20 C420 95 345 170 410 260 S430 350 420 410" class="river"/>${roads}${nodes}</svg>`;
 }
 function render() {
+  const actor = focus();
+  $<HTMLSelectElement>("scenario").value = view.config.scenario ?? "river";
+  $("cooperation-panel").hidden = !view.actors;
+  $("role-summary").textContent = view.actors
+    ? "快递员与医生独立规划 · 商人遵守同一资源仲裁规则"
+    : "医生：诊所接收交付 · 商人：仓库固定规则（默认等待）";
+  if (view.orders) {
+    $("orders").innerHTML = view.orders
+      .map((o) => {
+        const known = actor.context.orders?.[o.order_id];
+        return `<div class="goal-card"><strong>药材运输工作单 · ${esc(o.order_id)}</strong><span>世界状态（特权调试）：${esc(statusLabel[o.status] ?? o.status)} · v${o.version} · 期限 t${o.deadline_tick}${o.fulfilled_tick !== null ? ` · 实际履行 t${o.fulfilled_tick}` : ""}${o.breached ? " · 已违约" : ""}</span><span>${esc(label(selectedActor))}已收到：${known ? esc(statusLabel[known.status] ?? known.status) + ` · v${known.version}` : "尚无消息"}</span></div>`;
+      })
+      .join("");
+    const waitNames: Record<string, string> = {
+      await_order: "等待工作单",
+      await_delivery: "等待实际到货",
+      await_recipient: "等待接收者到场",
+      action_unavailable: "动作暂不可用，等待后重试",
+    };
+    $("actor-waiting").textContent =
+      `${label(selectedActor)}：${statusLabel[actor.status ?? "ready"] ?? actor.status}${actor.waiting ? ` · ${waitNames[actor.waiting.reason] ?? actor.waiting.reason} · 最晚 t${actor.waiting.until}` : ""}`;
+  }
   $("mode").textContent =
     view.mode === "verified_replay"
       ? "录制回放 · 逐步校验"
@@ -370,7 +470,7 @@ function render() {
     ],
     [
       "角色资源",
-      `${view.world.herb} / ${view.world.medicine}`,
+      `${actor.context.state.herb} / ${actor.context.state.medicine}`,
       "药材 / 药物 · 制作消耗 " + m.consumed,
     ],
   ]
@@ -380,17 +480,17 @@ function render() {
     )
     .join("");
   map();
-  $("plan-version").textContent = `PLAN v${view.actor.plan_version}`;
-  const repair = view.last_repair;
+  $("plan-version").textContent = `PLAN v${actor.plan_version}`;
+  const repair = actor.last_repair ?? view.last_repair;
   $("plan").innerHTML =
-    `<div class="goal-card"><small>当前承诺</small><strong>${esc(catalog.goals[view.goal])}</strong><span>当前位置：${esc(label(view.world.location))}</span></div>
+    `<div class="goal-card"><small>${view.actors ? esc(label(selectedActor)) + "的行动目标" : "当前承诺"}</small><strong>${esc(view.actors && actor.context.goal ? `${({ meet: "前往接货", supply: "运输药材", deliver: "交付物资" } as Record<string, string>)[actor.context.goal.kind]} · ${label(actor.context.goal.destination)}` : catalog.goals[view.goal])}</strong><span>当前位置：${esc(label(actor.context.state.location))}</span></div>
   ${repair.outcome ? `<div class="repair"><strong>${esc(statusLabel[repair.outcome] ?? repair.outcome)}</strong><p>${esc(repair.reason)}</p><small>保留 ${repair.retained ?? 0} 步 · 移除 ${repair.removed ?? 0} 步 · 本次预算 ${repair.budget_used ?? 0}</small></div>` : ""}
-  ${view.actor.active ? `<div class="active-action">制作进行中 · tick ${view.actor.active.due_tick} 完成<br><small>材料已消耗，取消不退款</small></div>` : ""}
-  <ol class="plan-list">${view.actor.plan.map((a, i) => `<li><span class="step-number">${String(i + 1).padStart(2, "0")}</span><div><strong>${esc(actionLabel[a.kind] ?? a.kind)}</strong><small>${esc(label(a.target))}</small></div><span class="step-pending">待执行</span></li>`).join("")}</ol>
-  ${!view.actor.plan.length ? `<div class="empty">${view.status === "success" ? "✓ 交付已完成，轨迹可导出验证。" : "暂无待执行计划，单步或运行开始搜索。"}</div>` : ""}`;
-  const entries = Object.entries(view.actor.evidence);
+  ${actor.active ? `<div class="active-action">${esc(actionLabel[actor.active.action.kind])}进行中 · tick ${actor.active.due_tick} 完成<br><small>${actor.active.action.kind === "craft" ? "材料已消耗，取消不退款" : "物资已预留，完成时实际转移"}</small></div>` : ""}
+  <ol class="plan-list">${actor.plan.map((a, i) => `<li><span class="step-number">${String(i + 1).padStart(2, "0")}</span><div><strong>${esc(actionLabel[a.kind] ?? a.kind)}</strong><small>${esc(label(a.target))}</small></div><span class="step-pending">待执行</span></li>`).join("")}</ol>
+  ${!actor.plan.length ? `<div class="empty">${view.status === "success" ? "✓ 交付已完成，轨迹可导出验证。" : actor.waiting ? "等待条件满足后继续，不重复搜索。" : "暂无待执行计划，单步或运行开始搜索。"}</div>` : ""}`;
+  const entries = Object.entries(actor.evidence);
   $("belief").innerHTML =
-    `<div class="belief-top">认知版本 ${view.actor.context.knowledge_version} <span>亲眼观察与简报均有时效</span></div><div class="belief-table"><table><thead><tr><th>事实</th><th>已知值</th><th>来源 / 时效</th></tr></thead><tbody>${entries
+    `<div class="belief-top">认知版本 ${actor.context.knowledge_version} <span>亲眼观察与简报均有时效</span></div><div class="belief-table"><table><thead><tr><th>事实</th><th>已知值</th><th>来源 / 时效</th></tr></thead><tbody>${entries
       .map(([key, e]) => {
         const expired = e.valid_until <= view.tick;
         const title = key.startsWith("road:")
@@ -411,6 +511,13 @@ function render() {
     merchant_rule: "商人规则",
     proposal_accepted: "模型提议接纳",
     proposal_rejected: "模型提议拒绝",
+    order_proposed: "工作单提议",
+    order_changed: "工作单状态变更",
+    order_received: "收到工作单消息",
+    resource_transferred: "物资实际交接",
+    action_interrupted: "动作中断",
+    action_denied: "动作不可用",
+    scenario_finished: "协作任务结束",
   };
   $("timeline").innerHTML =
     view.events
@@ -426,8 +533,12 @@ function render() {
               ? String(e.target)
               : e.goal
                 ? catalog.goals[String(e.goal)]
-                : String(e.outcome ?? "");
-        return `<div class="event"><span class="event-time">t${String(e.tick).padStart(2, "0")}</span><div><strong>${esc(eventNames[e.type] ?? e.type)}</strong><p>${esc(detail)}</p></div><span class="event-seq">#${e.seq}</span></div>`;
+                : String(
+                    e.status
+                      ? (statusLabel[String(e.status)] ?? e.status)
+                      : (e.outcome ?? ""),
+                  );
+        return `<div class="event"><span class="event-time">t${String(e.tick).padStart(2, "0")}</span><div><strong>${esc(e.actor_id ? label(String(e.actor_id)) + " · " : "")}${esc(eventNames[e.type] ?? e.type)}</strong><p>${esc(detail)}</p></div><span class="event-seq">#${e.seq}</span></div>`;
       })
       .join("") || '<div class="empty">行动发生后，证据会出现在这里。</div>';
   $("replay-controls").hidden = !view.replay;
@@ -472,6 +583,17 @@ function renderControls() {
   $<HTMLButtonElement>("replay-start").disabled ||= view.replay?.verified === 0;
   $<HTMLButtonElement>("replay-next").disabled ||= !!view.replay?.complete;
   $<HTMLSelectElement>("policy").disabled = busy;
+  $<HTMLSelectElement>("scenario").disabled = busy;
+  $<HTMLButtonElement>("apply-cooperation").disabled = busy;
+  $<HTMLButtonElement>("cancel-order").disabled =
+    busy ||
+    !!view.replay ||
+    terminal ||
+    !view.orders?.some((o) =>
+      ["proposed", "accepted", "in_progress"].includes(o.status),
+    );
+  $<HTMLButtonElement>("interrupt-actor").disabled =
+    busy || !!view.replay || terminal || !focus().active;
   $<HTMLInputElement>("import").disabled = busy;
   $<HTMLInputElement>("cursor").disabled = busy;
   $<HTMLButtonElement>("archive-save").disabled = busy || !archiveStorageReady;
@@ -487,6 +609,7 @@ function renderControls() {
   $<HTMLButtonElement>("model-propose").disabled =
     busy ||
     !catalog.models_enabled ||
+    !!view.actors ||
     !!view.replay ||
     !!view.actor.active ||
     terminal ||
@@ -626,6 +749,16 @@ async function init() {
   $<HTMLInputElement>("model-access").disabled = !catalog.models_enabled;
   await createSession();
   $("policy").onchange = () => perform(createSession);
+  $("scenario").onchange = () => perform(createSession);
+  $("apply-cooperation").onclick = () => perform(createSession);
+  $("actor-select").onchange = () => {
+    selectedActor = $<HTMLSelectElement>("actor-select").value;
+    render();
+  };
+  $("cancel-order").onclick = () =>
+    perform(() => command("order_cancel", "supply-1"));
+  $("interrupt-actor").onclick = () =>
+    perform(() => command("interrupt", selectedActor));
   $("step").onclick = () => perform(() => command("step"));
   $("run").onclick = () => perform(() => control("run"));
   $("pause").onclick = () => perform(() => control("pause"));

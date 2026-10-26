@@ -8,7 +8,7 @@ from worldmind.api import create_app
 from worldmind.domain import Config
 from worldmind.engine import Command, Engine, replay
 from worldmind.sdk import SDKError, WorldmindClient
-from worldmind.version import SUPPORTED_RECORDING_VERSIONS
+from worldmind.version import RIVER_RECORDING_VERSIONS as SUPPORTED_RECORDING_VERSIONS
 from .helpers import finish
 
 

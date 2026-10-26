@@ -941,3 +941,15 @@ footer {
     flex-direction: column;
   }
 }
+#cooperation-panel .goal-card {
+  display: grid;
+  gap: 8px;
+}
+#cooperation-panel > p,
+#cooperation-panel > div:not(.panel-head),
+#cooperation-panel > details {
+  margin: 12px 20px;
+}
+#cooperation-panel summary {
+  cursor: pointer;
+}

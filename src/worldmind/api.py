@@ -17,7 +17,10 @@ from pydantic import Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .domain import Config, GOAL_LABELS, LABELS, PLACES, ROADS, StrictModel, VERSION, digest
-from .engine import Command, Engine, Recording, compare, replay
+from .engine import Command
+from .runtime import (SessionConfig, SessionRecording, SessionCommand, make_engine,
+                      normalize_command, compare, replay)
+from .cooperation import CooperationEngine
 from .models import Ledger, ModelService
 from .providers import PROFILES, ProviderError, Settings
 from .archives import (ArchiveStore, ArchiveError, ArchiveNotFound, ArchiveCapacity,
@@ -33,7 +36,7 @@ class RevisionRequest(StrictModel):
 
 
 class Mutation(RevisionRequest):
-    command: Command
+    command: SessionCommand
 
 
 class Control(StrictModel):
@@ -45,7 +48,7 @@ class ModelRequest(StrictModel):
 
 
 class ImportRequest(StrictModel):
-    recording: Recording
+    recording: SessionRecording
 
 
 class Cursor(StrictModel):
@@ -146,13 +149,15 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     @app.get("/api/catalog")
     def catalog():
         return {"app_version": __version__, "recording_versions": SUPPORTED_RECORDING_VERSIONS,
+                "scenarios": [{"id": "river", "label": "单角色送药"},
+                              {"id": "cooperation", "label": "双角色协作"}],
                 "places": PLACES, "labels": LABELS, "roads": ROADS, "goals": GOAL_LABELS,
                 "providers": [{"id": k, "protocol": p.protocol, "verification": "protocol_mock_only"}
                               for k, p in PROFILES.items()],
                 "models_enabled": model_service.enabled}
 
     @app.post("/api/sessions", status_code=201)
-    async def create(config: Config):
+    async def create(config: SessionConfig):
         sid, s = registry.create(config)
         return {"id": sid, "token": s.token, "view": s.view()}
 
@@ -162,8 +167,15 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             return s.view()
 
     @app.get("/api/sessions/{sid}/actor")
-    async def actor(s: Session = Depends(session)):
+    async def actor(actor_id: str = "courier", s: Session = Depends(session)):
         async with s.lock:
+            if isinstance(s.engine, CooperationEngine):
+                try:
+                    return s.engine.actor_view(actor_id)
+                except ValueError:
+                    raise HTTPException(404, "actor_not_found") from None
+            if actor_id != "courier":
+                raise HTTPException(404, "actor_not_found")
             return s.engine.actor_view()
 
     @app.delete("/api/sessions/{sid}")
@@ -179,6 +191,10 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             cached = s.check_mutation(m.command_id, m.expected_revision, fingerprint)
             if cached is not None:
                 return cached
+            try:
+                command_value = normalize_command(s.engine, m.command)
+            except ValueError:
+                raise HTTPException(422, "command_not_supported_in_scenario") from None
             if s.recording:
                 raise HTTPException(409, "replay_is_read_only")
             if m.command.kind == "proposal":
@@ -196,7 +212,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
 
             async with cpu_slots:
                 try:
-                    return await computation(s.engine.advance, m.command, on_complete=commit)
+                    return await computation(s.engine.advance, command_value, on_complete=commit)
                 except ValueError:
                     raise HTTPException(409, "session_record_limit") from None
 
@@ -236,7 +252,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             if c.operation == "reset":
                 s.pause()
                 s.epoch += 1
-                s.engine = Engine(s.engine.config)
+                s.engine = make_engine(s.engine.config)
                 s.recording = s.replay_result = None
                 s.revision += 1
                 s.model_status = {"status": "reset", "usage": None}
@@ -261,7 +277,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
     @app.post("/api/sessions/{sid}/import")
     async def import_record(req: ImportRequest, s: Session = Depends(session)):
         # Verify before replacing any existing session state.
-        data = req.recording.model_dump()
+        data = req.recording.model_dump(exclude_none=True)
         async with s.lock:
             async with cpu_slots:
                 try:
@@ -328,6 +344,8 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             raise ProviderError("model_calls_disabled")
         settings = settings_loader(req.provider)
         async with s.lock:
+            if isinstance(s.engine, CooperationEngine):
+                raise HTTPException(409, "cooperation_models_not_enabled")
             if s.recording or s.engine.active or s.engine.status in ("cancelled", "success"):
                 raise HTTPException(409, "model_not_available_in_current_state")
             if s.pending is not None:

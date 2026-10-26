@@ -1,4 +1,4 @@
-# Python SDK（0.3.0）
+# Python SDK（0.4.0）
 
 `worldmind.sdk` 是本地 Worldmind HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装包并启动 FastAPI；仅使用 SDK 无需构建前端，也无需额外依赖。
 
@@ -7,7 +7,30 @@
 .venv/bin/python -m worldmind.cli serve
 ```
 
-Windows 将 Python 路径替换为 `.\.venv\Scripts\python.exe`。升级源码后重新执行 editable 安装，以刷新包版本元数据。应用 0.3.0 继续使用 0.2.1 录制协议；SDK 不改写导入记录的协议版本。
+Windows 将 Python 路径替换为 `.\.venv\Scripts\python.exe`。升级源码后重新执行 editable 安装，以刷新包版本元数据。协作场景使用新的 0.4.0 协议，单角色继续使用 0.2.1 协议；SDK 不改写导入记录的协议版本。
+
+## 双角色协作
+
+```python
+from worldmind.cooperation_domain import CooperationConfig
+from worldmind.sdk import WorldmindClient
+
+with WorldmindClient("http://127.0.0.1:8000") as client:
+    session = client.create_session(CooperationConfig(
+        scenario="cooperation", policy="Local", message_delay=2, order_deadline=30))
+    print(session.actor("doctor"))  # 只有医生自身认知，不含远端库存/消息队列
+    for _ in range(121):
+        view = session.step()
+        if view["status"] not in ("ready", "running"):
+            break
+    print(view["status"], view["orders"])
+    receipt = session.save_archive("双角色协作")
+    session.delete()
+```
+
+`session.actor()` 默认快递员，也支持 `doctor` 与 `merchant`。`session.command("order_cancel", "supply-1")` 按条款撤销工作单；`session.command("interrupt", "doctor")` 中断医生当前动作。后者不退回制作已消耗的材料。订单与角色数据全集仅在调试 `view()` 返回。
+
+协作录制可以通过同一存档、导入、回放和 `resume()` 接口操作。续跑导出新增 `lineage.parent_recording_hash` 和 `lineage.cursor`，标注来源记录的规范 JSON 摘要及分叉位置；它是来源元数据，不是签名或对父记录真实性的证明。运行状态哈希不包含来源元数据。原单角色记录保持原格式。
 
 ## 完成任务并保存回放
 
@@ -120,4 +143,4 @@ with TestClient(app) as transport:
         session.delete()
 ```
 
-注入的客户端由调用者关闭。它必须连接预期的服务来源，不应共享含其他账号认证的客户端。真实服务默认关闭模型调用；本轮 SDK 测试不调用供应商 API。测试适配器的已知提示及本轮结果见 [0.3 发布说明](RELEASE_V03.md)。
+注入的客户端由调用者关闭。它必须连接预期的服务来源，不应共享含其他账号认证的客户端。真实服务默认关闭模型调用；本轮 SDK 测试不调用供应商 API。测试适配器的已知提示及本轮结果见 [0.4 发布说明](RELEASE_V04.md)。
