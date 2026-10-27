@@ -3,13 +3,12 @@ import json
 from pathlib import Path
 
 from .domain import Config, canonical
-from .engine import Command
-from .runtime import make_engine, compare, replay
+from .runtime import make_engine, run_scenario, compare, replay
 from .cooperation_domain import CooperationConfig
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="worldmind")
+    parser = argparse.ArgumentParser(prog="intentweave", description="Observable NPC planning and cooperation")
     sub = parser.add_subparsers(dest="command", required=True)
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
@@ -41,19 +40,14 @@ def main():
         _, result = replay(json.loads(data))
         print(canonical(result))
     else:
+        options = {"policy": getattr(args, "policy", "Local")}
+        config = (CooperationConfig(scenario="cooperation", **options)
+                  if args.scenario == "cooperation" else Config(**options))
         if args.command == "eval":
-            data = compare(CooperationConfig(scenario="cooperation") if args.scenario == "cooperation" else Config())
+            data = compare(config)
             print(canonical({k: {n: v for n, v in r.items() if n != "recording"} for k, r in data.items()}))
         else:
-            config = (CooperationConfig(scenario="cooperation", policy=args.policy)
-                      if args.scenario == "cooperation" else Config(policy=args.policy))
-            e = make_engine(config)
-            for _ in range(e.config.max_ticks + 1):
-                if e.tick == 1:
-                    e.advance(Command(kind="block", target="bridge|home"))
-                e.advance(Command(kind="step"))
-                if e.status not in ("ready", "running"):
-                    break
+            e = run_scenario(make_engine(config))
             data = e.export()
             print(canonical({"status": e.status, "tick": e.tick, "metrics": e.metrics}))
         dest = Path(args.output)

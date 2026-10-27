@@ -39,7 +39,6 @@ def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) ->
                         budget.limit = original_limit
                     if patch is not None:
                         return Decision(patch + suffix, "patched", reason, r, len(suffix), [0, r])
-                result.outcome = "fallback_full"
         path = search(ctx.state, ctx.goal, budget)
         if path is not None:
             valid, index, reason = validate(ctx, path, budget)

@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from .domain import Config, GOAL_LABELS, LABELS, PLACES, ROADS, StrictModel, VERSION, digest
+from .domain import GOAL_LABELS, LABELS, PLACES, ROADS, StrictModel, VERSION, digest
 from .engine import Command
 from .runtime import (SessionConfig, SessionRecording, SessionCommand, make_engine,
                       normalize_command, compare, replay)
@@ -83,7 +83,7 @@ def create_app(*, ledger_path=None, model_service=None, model_access=None, setti
             registry.remove(sid)
         await asyncio.gather(*registry.retiring, return_exceptions=True)
 
-    app = FastAPI(title="Worldmind", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="IntentWeave · 意织", version=__version__, lifespan=lifespan)
     app.state.sessions = sessions
     app.state.registry = registry
     app.state.archives = archives

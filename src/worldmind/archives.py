@@ -18,8 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 from .domain import canonical
-from .engine import Engine
-from .runtime import recording_adapter, replay
+from .runtime import SessionEngine, recording_adapter, replay
 
 
 class ArchiveError(Exception):
@@ -145,7 +144,7 @@ class ArchiveStore:
         return {key: row[key] for key in (
             "id", "name", "schema_version", "created_at", "expires_at", "step_count", "byte_count")}
 
-    def _recording(self, data: dict) -> tuple[dict, bytes, Engine, dict]:
+    def _recording(self, data: dict) -> tuple[dict, bytes, SessionEngine, dict]:
         try:
             value = recording_adapter.validate_python(data).model_dump(exclude_none=True)
             payload = canonical(value).encode("utf-8")
@@ -200,7 +199,7 @@ class ArchiveStore:
         if not hmac.compare_digest(presented, expected) or row is None:
             raise ArchiveNotFound()
 
-    def _load(self, archive_id: str, token: str) -> tuple[dict, dict, Engine, dict]:
+    def _load(self, archive_id: str, token: str) -> tuple[dict, dict, SessionEngine, dict]:
         """Authenticate, check integrity and replay once, retaining the verified engine."""
         if not isinstance(archive_id, str) or not 1 <= len(archive_id) <= 128:
             raise ArchiveNotFound()
@@ -239,7 +238,7 @@ class ArchiveStore:
         metadata, value, _, _ = self._load(archive_id, token)
         return {"archive": metadata, "recording": value}
 
-    def restore(self, archive_id: str, token: str) -> tuple[Engine, dict, dict]:
+    def restore(self, archive_id: str, token: str) -> tuple[SessionEngine, dict, dict]:
         """Return the verified execution state without replaying the recording twice."""
         _, value, engine, verified = self._load(archive_id, token)
         return engine, verified, value

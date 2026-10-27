@@ -12,8 +12,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 
 from .domain import canonical, digest
-from .engine import Engine
-from .runtime import SessionConfig, make_engine
+from .runtime import SessionConfig, SessionEngine, make_engine
 from .cooperation import CooperationEngine
 
 
@@ -25,7 +24,7 @@ class SessionError(Exception):
 
 @dataclass
 class Session:
-    engine: Engine
+    engine: SessionEngine
     token: str = field(default_factory=lambda: secrets.token_urlsafe(32), repr=False)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     revision: int = 0
@@ -74,7 +73,7 @@ class Session:
         self.receipts[command_id] = (fingerprint, zlib.compress(canonical(view).encode(), level=1))
         return view
 
-    def install_replay(self, engine: Engine, result: dict, recording: dict):
+    def install_replay(self, engine: SessionEngine, result: dict, recording: dict):
         # Call only after full verification, under the writer lock. Late models become stale.
         self.pause()
         self.epoch += 1

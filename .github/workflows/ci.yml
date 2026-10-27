@@ -1,4 +1,4 @@
-name: Validate Worldmind
+name: Validate IntentWeave
 on:
   push:
     branches: [main, 'codex/**']

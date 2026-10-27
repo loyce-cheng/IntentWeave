@@ -31,7 +31,7 @@ type ActorView = {
     knowledge_version: number;
     present?: string[];
     orders?: Record<string, Order>;
-    goal?: { kind: string; destination: string; deadline: number };
+    goal?: { kind: string; destination: string; deadline: number } | null;
   };
   evidence: Record<string, Evidence>;
   plan: Action[];
@@ -50,7 +50,13 @@ type View = {
   state_hash: string;
   goal: string;
   world: State;
-  config: { policy: string; scenario?: string };
+  config: {
+    policy: string;
+    scenario?: string;
+    order_deadline?: number;
+    message_delay?: number;
+    merchant_takes_at?: number;
+  };
   actor: ActorView;
   actors?: Record<string, ActorView>;
   orders?: Order[];
@@ -82,6 +88,7 @@ type Catalog = {
   labels: Record<string, string>;
   roads: string[];
   goals: Record<string, string>;
+  scenarios: { id: string; label: string }[];
   providers: { id: string; protocol: string }[];
   models_enabled: boolean;
 };
@@ -163,18 +170,18 @@ const label = (p: string) => catalog.labels[p] ?? actorNames[p] ?? p;
 
 $("app").innerHTML = `
 <aside class="sidebar">
-  <a class="brand" href="/"><span class="brand-mark">W</span><span>Worldmind<small>界行 · 行动实验室</small></span></a>
+  <a class="brand" href="/"><span class="brand-mark">织</span><span>IntentWeave<small>意织 · NPC 规划实验台</small></span></a>
   <div class="side-label">WORKSPACE</div>
   <div class="side-active"><span>◉</span> 河谷救援 <span class="version" id="side-version"></span></div>
   <div class="side-note">观察 → 规划 → 行动 → 修复</div>
   <div class="side-bottom"><span class="dot"></span> 本地符号规划<br><small>模型为可选提议者<br>每一次行动都留下证据</small></div>
 </aside>
 <main>
-  <header><div class="breadcrumb">Worldmind <span>/</span> 交互演示 <span>/</span> 河谷救援</div><span class="badge" id="app-version"></span></header>
-  <section class="intro"><div><div class="eyebrow">OBSERVABLE NPC PLANNING</div><h1>世界改变，计划继续。</h1><p>改变道路与资源，观察角色如何发现问题、修复计划，并验证每一步。</p></div><div class="session-indicator"><span class="dot"></span><span id="mode">离线实时运行</span></div></section>
+  <header><div class="breadcrumb">IntentWeave <span>/</span> 交互演示 <span>/</span> 河谷救援</div><span class="badge" id="app-version"></span></header>
+  <section class="intro"><div><div class="eyebrow">OBSERVABLE NPC PLANNING</div><h1>世界改变，计划继续。</h1><p>看见 NPC 如何计划、协作，以及在意外之后继续。改变道路与资源，验证每一步行动。</p></div><div class="session-indicator"><span class="dot"></span><span id="mode">离线模拟 · 实际执行</span></div></section>
   <div id="error" role="alert" hidden></div>
   <section class="toolbar" aria-label="模拟控制">
-    <label>场景<select id="scenario"><option value="river">单角色送药</option><option value="cooperation">双角色协作</option></select></label>
+    <label>场景<select id="scenario"></select></label>
     <label>规划策略<select id="policy"><option>Local</option><option>Full</option></select></label>
     <label class="goal-select">当前目标<select id="goal"></select></label>
     <button id="changeGoal">改变目标</button><span class="divider"></span>
@@ -212,8 +219,8 @@ $("app").innerHTML = `
     <p class="muted">存档保留 7 天。恢复并验证后，可选择任意记录位置，点击“从此处继续”续跑，再单步或运行。此浏览器保存访问凭据；清除浏览器数据会丢失入口。请导出 JSON 作为长期或跨设备备份。</p>
     <div id="archive-status" class="muted" role="status"></div><div id="archives" class="archive-list"></div>
   </section>
-  <section class="panel lower"><div class="panel-head"><div><span class="index">07</span><h2>可选模型提议</h2></div><span id="model-enabled" class="badge"></span></div><p class="muted">模型只接收角色认知。提议需通过语法、语义和当前版本检查。密钥仅由服务端配置。</p><div class="model-controls"><label>服务配置<select id="provider"></select></label><label>演示访问口令<input id="model-access" type="password" autocomplete="off" placeholder="不是供应商 API Key" /></label><button id="model-propose">请求一次提议</button><button id="model-cancel">取消请求</button></div><div id="model-status" class="muted"></div></section>
-  <footer><span>WORLD MIND / 有限世界，可解释行动。</span><span>运行会话在内存中；需要保留的轨迹请存档或导出。</span></footer>
+  <section class="panel lower"><div class="panel-head"><div><span class="index">07</span><h2>可选模型提议</h2></div><span id="model-enabled" class="badge"></span></div><p id="model-description" class="muted"></p><div class="model-controls"><label>服务配置<select id="provider"></select></label><label>演示访问口令<input id="model-access" type="password" autocomplete="off" placeholder="不是供应商 API Key" /></label><button id="model-propose">请求一次提议</button><button id="model-cancel">取消请求</button></div><div id="model-status" class="muted"></div></section>
+  <footer><span>INTENTWEAVE / 各自意图，共同行动。</span><span>运行会话在内存中；需要保留的轨迹请存档或导出。</span></footer>
 </main>`;
 
 const api = <T>(path: string, options: RequestInit = {}) =>
@@ -310,15 +317,22 @@ async function perform(fn: () => Promise<void>) {
     schedulePoll();
   }
 }
-async function createSession() {
-  if (session.id) {
-    try {
-      await api(spath(), { method: "DELETE" });
-    } catch (error) {
-      if (!(error instanceof ApiError) || ![404, 410].includes(error.status))
-        throw error;
-    }
+function syncConfigControls() {
+  $<HTMLSelectElement>("scenario").value = view.config.scenario ?? "river";
+  $<HTMLSelectElement>("policy").value = view.config.policy;
+  $<HTMLSelectElement>("goal").value = view.goal;
+  for (const [id, value] of [
+    ["order-deadline", view.config.order_deadline],
+    ["message-delay", view.config.message_delay],
+    ["merchant-tick", view.config.merchant_takes_at],
+  ] as const) {
+    const input = $<HTMLInputElement>(id);
+    input.value = value === undefined ? input.defaultValue : String(value);
   }
+}
+
+async function createSession() {
+  const previous = { ...session };
   const data = await api<{ id: string; token: string; view: View }>(
     "/sessions",
     {
@@ -340,14 +354,35 @@ async function createSession() {
           : {}),
       }),
     },
-  );
+  ).catch((error) => {
+    if (!previous.id) throw error;
+    // Keep the running simulation and invalid draft values available to fix.
+    $<HTMLSelectElement>("scenario").value = view.config.scenario ?? "river";
+    $<HTMLSelectElement>("policy").value = view.config.policy;
+    const reason =
+      error instanceof ApiError && error.status === 429
+        ? "服务当前无法创建更多会话，请稍后重试。"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    throw new Error(`新场景未创建，原模拟仍可继续。${reason}`);
+  });
   responses.invalidate();
   session = { id: data.id, token: data.token };
   view = data.view;
   pair = null;
   $("comparison").innerHTML =
     '<div class="empty">运行一次对照，让结果回答问题。</div>';
+  syncConfigControls();
   render();
+  if (previous.id) {
+    try {
+      await request(spath(previous.id), { method: "DELETE" }, previous);
+    } catch (error) {
+      if (!(error instanceof ApiError) || ![404, 410].includes(error.status))
+        notify(new Error("新场景已建立，旧会话暂未清理，将在到期后释放。"));
+    }
+  }
 }
 async function command(kind: string, target?: string) {
   await updateView(spath() + "/commands", {
@@ -364,6 +399,7 @@ async function control(operation: string) {
     method: "POST",
     body: JSON.stringify({ operation }),
   });
+  if (operation === "reset") syncConfigControls();
 }
 function download(data: unknown, name: string) {
   const url = URL.createObjectURL(
@@ -424,7 +460,6 @@ function map() {
 }
 function render() {
   const actor = focus();
-  $<HTMLSelectElement>("scenario").value = view.config.scenario ?? "river";
   $("cooperation-panel").hidden = !view.actors;
   $("role-summary").textContent = view.actors
     ? "快递员与医生独立规划 · 商人遵守同一资源仲裁规则"
@@ -471,7 +506,7 @@ function render() {
     [
       "角色资源",
       `${actor.context.state.herb} / ${actor.context.state.medicine}`,
-      "药材 / 药物 · 制作消耗 " + m.consumed,
+      "药材 / 药物 · 场景累计制作消耗 " + m.consumed,
     ],
   ]
     .map(
@@ -482,12 +517,23 @@ function render() {
   map();
   $("plan-version").textContent = `PLAN v${actor.plan_version}`;
   const repair = actor.last_repair ?? view.last_repair;
+  const merchant = !!view.actors && selectedActor === "merchant";
+  const goal = actor.context.goal;
+  const goalLabel = merchant
+    ? view.config.merchant_takes_at
+      ? `固定规则：t${view.config.merchant_takes_at} 在仓库取材`
+      : "固定规则：本场景不取材"
+    : view.actors
+      ? goal
+        ? `${({ meet: "前往接货", supply: "运输药材", deliver: "交付物资" } as Record<string, string>)[goal.kind]} · ${label(goal.destination)}`
+        : "等待工作单与行动条件"
+      : catalog.goals[view.goal];
   $("plan").innerHTML =
-    `<div class="goal-card"><small>${view.actors ? esc(label(selectedActor)) + "的行动目标" : "当前承诺"}</small><strong>${esc(view.actors && actor.context.goal ? `${({ meet: "前往接货", supply: "运输药材", deliver: "交付物资" } as Record<string, string>)[actor.context.goal.kind]} · ${label(actor.context.goal.destination)}` : catalog.goals[view.goal])}</strong><span>当前位置：${esc(label(actor.context.state.location))}</span></div>
+    `<div class="goal-card"><small>${view.actors ? esc(label(selectedActor)) + "的行动目标" : "当前承诺"}</small><strong>${esc(goalLabel)}</strong><span>当前位置：${esc(label(actor.context.state.location))}</span></div>
   ${repair.outcome ? `<div class="repair"><strong>${esc(statusLabel[repair.outcome] ?? repair.outcome)}</strong><p>${esc(repair.reason)}</p><small>保留 ${repair.retained ?? 0} 步 · 移除 ${repair.removed ?? 0} 步 · 本次预算 ${repair.budget_used ?? 0}</small></div>` : ""}
   ${actor.active ? `<div class="active-action">${esc(actionLabel[actor.active.action.kind])}进行中 · tick ${actor.active.due_tick} 完成<br><small>${actor.active.action.kind === "craft" ? "材料已消耗，取消不退款" : "物资已预留，完成时实际转移"}</small></div>` : ""}
   <ol class="plan-list">${actor.plan.map((a, i) => `<li><span class="step-number">${String(i + 1).padStart(2, "0")}</span><div><strong>${esc(actionLabel[a.kind] ?? a.kind)}</strong><small>${esc(label(a.target))}</small></div><span class="step-pending">待执行</span></li>`).join("")}</ol>
-  ${!actor.plan.length ? `<div class="empty">${view.status === "success" ? "✓ 交付已完成，轨迹可导出验证。" : actor.waiting ? "等待条件满足后继续，不重复搜索。" : "暂无待执行计划，单步或运行开始搜索。"}</div>` : ""}`;
+  ${!actor.plan.length ? `<div class="empty">${merchant ? "商人按固定规则行动，不进行计划搜索。" : view.status === "success" ? "✓ 交付已完成，轨迹可导出验证。" : actor.waiting ? "等待条件满足后继续，不重复搜索。" : "暂无待执行计划，单步或运行开始搜索。"}</div>` : ""}`;
   const entries = Object.entries(actor.evidence);
   $("belief").innerHTML =
     `<div class="belief-top">认知版本 ${actor.context.knowledge_version} <span>亲眼观察与简报均有时效</span></div><div class="belief-table"><table><thead><tr><th>事实</th><th>已知值</th><th>来源 / 时效</th></tr></thead><tbody>${entries
@@ -551,6 +597,14 @@ function render() {
     $("replay-status").textContent =
       "同版本输入重执行 · 每步状态及事件哈希检查";
   const u = view.model.usage;
+  $("model-enabled").textContent = view.actors
+    ? "协作场景 · 离线策略"
+    : catalog.models_enabled
+      ? "需服务端访问口令"
+      : "默认关闭 · 无 API 费用";
+  $("model-description").textContent = view.actors
+    ? "协作场景使用本地符号规划，无需模型或访问口令。模型提议仅用于单角色场景。"
+    : "模型只接收角色认知。提议需通过语法、语义和当前版本检查。密钥仅由服务端配置。";
   $("model-status").textContent =
     `状态：${statusLabel[view.model.status] ?? view.model.status} · 用量：${u?.known ? `${u.input_tokens} 输入 / ${u.output_tokens} 输出 token` : "未知或未调用"} · 费用未知`;
   renderControls();
@@ -614,6 +668,10 @@ function renderControls() {
     !!view.actor.active ||
     terminal ||
     view.model.status === "pending";
+  const modelUnavailable =
+    busy || !catalog.models_enabled || !!view.actors || !!view.replay;
+  $<HTMLSelectElement>("provider").disabled = modelUnavailable;
+  $<HTMLInputElement>("model-access").disabled = modelUnavailable;
 }
 
 function renderPair() {
@@ -629,7 +687,8 @@ function renderPair() {
       .join(
         "",
       )}</tbody></table><p class="muted">这是单个固定场景的实际运行，包含失败。CPU 计时受机器负载影响，不构成算法优越性结论。</p><button id="export-pair">导出两条对照轨迹</button>`;
-  $("export-pair").onclick = () => download(pair, "worldmind-comparison.json");
+  $("export-pair").onclick = () =>
+    download(pair, "intentweave-comparison.json");
 }
 async function seek(until: number) {
   if (until === view.replay?.verified) return;
@@ -637,6 +696,7 @@ async function seek(until: number) {
     method: "POST",
     body: JSON.stringify({ until }),
   });
+  syncConfigControls();
 }
 
 function renderArchives() {
@@ -659,6 +719,7 @@ function renderArchives() {
           method: "POST",
           headers: { "X-Archive-Token": archive.token },
         });
+        syncConfigControls();
         $("archive-status").textContent =
           `已验证并恢复“${archive.name}”。可回放查看，或点击“从此处继续”续跑。`;
       });
@@ -705,7 +766,7 @@ async function saveArchive() {
   try {
     writeArchives(archives);
   } catch (error) {
-    download(receipt, "worldmind-archive-access.json");
+    download(receipt, "intentweave-archive-access.json");
     renderArchives();
     throw new Error("浏览器无法保存存档入口，已下载访问凭据备份；请妥善保管。");
   }
@@ -729,6 +790,9 @@ async function init() {
   $("goal").innerHTML = Object.entries(catalog.goals)
     .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`)
     .join("");
+  $("scenario").innerHTML = catalog.scenarios
+    .map(({ id, label }) => `<option value="${esc(id)}">${esc(label)}</option>`)
+    .join("");
   $("road").innerHTML = catalog.roads
     .map(
       (r) =>
@@ -742,11 +806,6 @@ async function init() {
         `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.protocol)}</option>`,
     )
     .join("");
-  $("model-enabled").textContent = catalog.models_enabled
-    ? "需服务端访问口令"
-    : "默认关闭 · 无 API 费用";
-  $<HTMLButtonElement>("model-propose").disabled = !catalog.models_enabled;
-  $<HTMLInputElement>("model-access").disabled = !catalog.models_enabled;
   await createSession();
   $("policy").onchange = () => perform(createSession);
   $("scenario").onchange = () => perform(createSession);
@@ -781,7 +840,7 @@ async function init() {
     });
   $("export").onclick = () =>
     perform(async () =>
-      download(await api(spath() + "/export"), "worldmind-recording.json"),
+      download(await api(spath() + "/export"), "intentweave-recording.json"),
     );
   $("import").onchange = () =>
     perform(async () => {
@@ -792,6 +851,7 @@ async function init() {
         method: "POST",
         body: JSON.stringify({ recording: JSON.parse(await file.text()) }),
       });
+      syncConfigControls();
       $<HTMLInputElement>("import").value = "";
     });
   $("replay-start").onclick = () => perform(() => seek(0));
@@ -804,6 +864,7 @@ async function init() {
           expected_revision: view.revision,
         }),
       });
+      syncConfigControls();
       $("archive-status").textContent =
         "已从当前记录位置创建可执行分支，现为暂停状态。可单步、运行或改变目标；原存档保持不变。";
     });

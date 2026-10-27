@@ -13,6 +13,7 @@ from .domain import (Action, Config, GOALS, INITIAL_STOCK, PLACES, ROADS, VERSIO
 from .planner import Budget, Context
 from . import planner
 from .compat import planner_v01, planner_v02
+from .replay import verify_replay
 from .version import (LEGACY_RECORDING_VERSION, V02_RECORDING_VERSION,
                       RIVER_RECORDING_VERSIONS as SUPPORTED_RECORDING_VERSIONS)
 
@@ -339,37 +340,10 @@ class Recording(StrictModel):
 def replay(data: dict, until: int | None = None) -> tuple[Engine, dict]:
     rec = Recording.model_validate(data)
     e = Engine(rec.config, version=rec.schema_version)
-    actual_hash = e.state_hash()
-    if rec.initial_hash != actual_hash:
-        raise ValueError("initial hash mismatch")
-    count = len(rec.steps) if until is None else until
-    if type(count) is not int or not 0 <= count <= len(rec.steps):
-        raise ValueError("invalid replay cursor")
-    for i, step in enumerate(rec.steps[:count]):
-        e.advance(step.input)
-        actual = e.trace[-1]  # computed from execution, never from imported hashes
-        actual_hash = actual["state_hash"]
-        if step.state_hash != actual_hash or step.event_hash != actual["event_hash"]:
-            raise ValueError(f"replay divergence at step {i + 1}")
-    if count == len(rec.steps) and actual_hash != rec.final_hash:
-        raise ValueError("final hash mismatch")
-    return e, {"verified": count, "total": len(rec.steps), "complete": count == len(rec.steps),
-               "mode": "verified_replay"}
+    return verify_replay(e, rec, until)
 
 
 def compare(config: Config, commands: list[tuple[int, Command]] | None = None) -> dict:
-    """Fixed external tick schedule, identical action model and budget accounting."""
-    results = {}
-    schedule = [(1, Command(kind="block", target="bridge|home"))] if commands is None else commands
-    for policy in ("Full", "Local"):
-        e = Engine(config.model_copy(update={"policy": policy}))
-        for _ in range(config.max_ticks + 1):
-            for tick, command in schedule:
-                if tick == e.tick:
-                    e.advance(command)
-            e.advance(Command(kind="step"))
-            if e.status not in ("ready", "running"):
-                break
-        results[policy] = {"status": e.status, "tick": e.tick, "metrics": e.metrics,
-                           "cpu_ms": e.cpu_ms, "recording": e.export()}
-    return results
+    """Compatibility entry point for the shared scenario comparison."""
+    from .runtime import compare as compare_scenarios
+    return compare_scenarios(config, commands)

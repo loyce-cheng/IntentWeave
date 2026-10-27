@@ -1,4 +1,4 @@
-"""Small synchronous client for the versioned Worldmind HTTP service.
+"""Small synchronous client for the versioned IntentWeave HTTP service.
 
 No command is retried automatically. When explicitly retrying an uncertain write,
 retain both its command_id and expected_revision to use the server's receipt.
@@ -24,7 +24,7 @@ class SDKError(Exception):
     def __init__(self, status: int | None, detail: str):
         self.status = status
         self.detail = detail
-        super().__init__(f"Worldmind request failed ({status or 'transport'}): {detail}")
+        super().__init__(f"IntentWeave request failed ({status or 'transport'}): {detail}")
 
 
 def _identifier(value: str) -> str:
@@ -61,7 +61,7 @@ class WorldmindClient:
     """HTTP client. An injected client remains owned and closed by its caller.
 
     ``client`` may be an httpx.Client or FastAPI TestClient for embedded tests.
-    It must be dedicated to the intended Worldmind origin. No redirects are
+    It must be dedicated to the intended IntentWeave origin. No redirects are
     followed, so capability headers are never forwarded to another host.
     """
 
@@ -81,7 +81,7 @@ class WorldmindClient:
 
     def __enter__(self):
         if self._closed:
-            raise RuntimeError("Worldmind client is closed")
+            raise RuntimeError("IntentWeave client is closed")
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -95,7 +95,7 @@ class WorldmindClient:
     def _request(self, method: str, path: str, *, headers: dict | None = None,
                  json: dict | None = None) -> dict:
         if self._closed:
-            raise RuntimeError("Worldmind client is closed")
+            raise RuntimeError("IntentWeave client is closed")
         headers = headers or {}
         try:
             response = self._client.request(method, "/api" + path, headers=headers,
