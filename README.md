@@ -1,23 +1,103 @@
-**界行：可验证的 NPC 行动与计划恢复运行时**
+# IntentWeave · 意织
 
-当前阶段：详细规划，尚未实现运行时代码。2026-10-07，用户已选择原方案一。项目名称暂定，技术和研究结果均未作实测。
+**看见 NPC 如何计划、协作，以及在意外之后继续。**
 
-**当前交付目标更新为两周内发布 v0.1。** 采用 AI 辅助开发，暂按 10 个工作日、每天 6–8 小时估算 60–80 小时，交付单场景可交互演示。请先阅读 [两周上线计划](docs/plan/07-两周上线计划.md)；其他文档保留为长期设计，首版范围及发布版本以该计划为准。
+意织是一个可观察、可干预、可回放的 NPC 规划实验台。医生等待药材，快递员选择路线；如果桥断了、材料被抢先取走，或者工作单被取消，角色会怎样继续？你可以亲手制造这些变化，查看每个角色知道什么、准备做什么，以及计划为什么改变。
 
-项目目标：让 NPC 在只能获得局部信息、世界会被玩家和其他角色改变的条件下，执行长程任务、识别计划失效、修复受影响部分，并保留可解释、可重放的证据。运行主体面向普通 CPU 笔记本，付费模型 API 用于可替换的高层决策。
+```mermaid
+flowchart LR
+    A[医生提出需求] --> B[快递员取材与运输]
+    B --> C[实际交接药材]
+    C --> D[医生制药与送达]
+```
 
-建议阅读顺序：
+- **各自认知，共同任务。** 两个角色独立规划；消息可以延迟，预计到货不能当作现有库存。
+- **随时干预，看懂恢复。** 阻路、移除材料、取消订单或中断动作，对照 Full 重规划与 Local 局部修复。
+- **保存过程，验证结果。** 导出轨迹、校验回放，并从选定位置继续；材料和预算的消耗随记录保留。
 
-| 文档 | 解决的问题 |
+当前 **0.5.0** 提供两个规划角色、一个规则竞争者和一张运输工作单。默认使用本地符号规划，**无需 API Key**；协作场景全部离线运行。
+
+<details>
+<summary>查看真实界面：药材交接完成，医生开始制药</summary>
+
+![IntentWeave 双角色协作：工单已履行，医生在工坊制药，地图与计划同步可见](docs/assets/intentweave-cooperation.png)
+
+</details>
+
+## 快速启动
+
+需要 Python 3.11+、Node.js 22.12+。在仓库根目录执行：
+
+macOS / Linux：
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python -m pip install --no-deps -e .
+npm --prefix web ci
+npm --prefix web run build
+.venv/bin/intentweave serve
+```
+
+Windows PowerShell（无需激活虚拟环境）：
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
+.\.venv\Scripts\python.exe -m pip install --no-deps -e .
+npm --prefix web ci
+npm --prefix web run build
+.\.venv\Scripts\intentweave.exe serve
+```
+
+打开 [本地演示](http://127.0.0.1:8000)。页面默认进入「单角色送药」；选择「双角色协作」体验本版主场景。[HTTP 接口文档](http://127.0.0.1:8000/docs) 随服务提供。
+
+## 先试这三步
+
+1. 在双角色场景中单步推进，切换「关注角色」，观察医生和快递员各自的消息、库存与计划。
+2. 阻断一条道路，或在交接期间取消工作单；查看等待原因和事件记录。制作开始即消耗药材，中断不会退款。
+3. 保存或导出回放，恢复后选择游标，再点击「从此处继续」。原存档不变，新分支保留此前的资源消耗和预算。
+
+「新协作场景配置」可调整订单期限、消息延迟和商人取材时点。Full / Local 对照使用相同初态与干预；Local 可能花费更多校验预算，实际结果可导出检查。
+
+刷新页面会新建模拟；需要保留进度时请显式存档。升级、持久化与凭证说明见 [运行与存档维护](docs/SDK.md#运行与存档维护)。
+
+## CLI 与 Python SDK
+
+只运行离线核心或 SDK 不需要 Node.js。安装 Python 依赖和项目后即可执行：
+
+```bash
+.venv/bin/intentweave run --scenario cooperation --output var/cooperation.json
+.venv/bin/intentweave replay var/cooperation.json
+.venv/bin/intentweave eval --scenario cooperation --output var/comparison.json
+```
+
+`run` 和 `eval` 均在第 1 tick 后注入断桥；省略 `--scenario` 使用原单角色场景。SDK 可创建协作会话、读取 `session.actor("doctor")`、提交干预并保存回放，示例见 [Python SDK](docs/SDK.md)。
+
+## 开发与验证
+
+```bash
+.venv/bin/python -m pytest -q --cov=worldmind --cov-report=term-missing
+npm --prefix web run format:check
+npm --prefix web run build
+cd web
+npx playwright install chromium
+npm run test:e2e
+```
+
+`build` 包含 TypeScript 检查；Playwright 使用真实后端与生产构建。已有 Chromium 可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`；Windows 使用对应的 Python 路径。[CI](.github/workflows/ci.yml) 覆盖 Windows/Linux 后端和 Linux 浏览器，当前结果见 PR Checks。
+
+协作固定案例用 `.venv/bin/python scripts/benchmark_v04.py` 复现，结果写入 `var/benchmarks/v0.4`。历史录制保留在 `docs/evidence/`，用于协议兼容回归；不要用新结果覆盖。当前发布内容见 [0.5 发布说明](docs/RELEASE_V05.md)，协作协议和初版验证见 [0.4 说明](docs/RELEASE_V04.md)。
+
+`src/worldmind/` 是运行时与 SDK，`web/` 是交互界面，`tests/` 和 `web/e2e/` 是回归测试。前端开发可运行 `npm --prefix web run dev`，通过 Vite 代理访问已启动的后端；生产页面在修改后需要重新构建。
+
+## 继续了解
+
+| 入口 | 内容 |
 |---|---|
-| [07 两周上线计划（当前优先）](docs/plan/07-两周上线计划.md) | 首版范围、10 个工作日排期、AI 辅助开发方式与上线门槛 |
-| [01 项目总规划](docs/plan/01-项目总规划.md) | 做成什么、为什么值得做、创新边界、完整交付范围 |
-| [02 架构与协议](docs/plan/02-架构与协议.md) | 模块边界、状态模型、动作执行、观察隔离和回放 |
-| [03 算法与创新验证](docs/plan/03-算法与创新验证.md) | 最接近的研究、算法流程、保证范围与贡献假设 |
-| [04 评测与验收](docs/plan/04-评测与验收.md) | 强基线、公平实验、统计协议、工程与研究验收 |
-| [05 实施路线与工程交付](docs/plan/05-实施路线与工程交付.md) | 版本、任务依赖、工作量、技术选型、资源与风险 |
-| [06 场景与演示设计](docs/plan/06-场景与演示设计.md) | 可玩演示、动作目录、扰动案例、调试工作台和引擎适配 |
+| [协作协议与发布说明](docs/RELEASE_V04.md) | 工作单、资源、调度、失败案例与验证 |
+| [单角色协议与共享会话机制](docs/IMPLEMENTATION.md) | 原场景语义、并发、存档和兼容边界 |
+| [可选模型接入](docs/PROVIDERS.md) | 单角色模型配置、额度与协议验证范围 |
+| [文档索引](docs/README.md) / [版本记录](CHANGELOG.md) | 当前指南、历史报告与原始规划 |
 
-[第一轮选题调研](开放世界AI项目方向与路线.md) 保留为背景。上一轮估算的 180–240 小时研究原型、360–510 小时完整 1.0 包含更广范围，不是当前两周 v0.1 的工时。完整项目在首版上线后按实际进展重新估算。
-
-全文中的目标数值、拟定命令和目录都是待实现约定，不是现有功能、实测结果或已发布软件。首次开始编码时按两周计划 D1 建立可部署的最小流程，再逐步补齐执行、观察与修复能力。
+IntentWeave（意织）原名 Worldmind（界行），意为把角色意图编织成可执行的协作。为兼容已有安装与存档，Python 包及导入路径 `worldmind`、`WorldmindClient`、旧 CLI、`WORLDMIND_*` 配置和录制协议标识保持有效；`intentweave` 是新的推荐命令。当前交付为源码与本地演示。

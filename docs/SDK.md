@@ -1,0 +1,155 @@
+# IntentWeave Python SDK（0.5.0）
+
+`worldmind.sdk` 是本地 IntentWeave HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装依赖和项目；仅使用 SDK 无需构建前端，也无需额外依赖。保留 `worldmind` 导入路径和 `WorldmindClient` 以兼容已有代码。
+
+```bash
+.venv/bin/intentweave serve
+```
+
+Windows 使用 `.\.venv\Scripts\intentweave.exe serve`。协作场景使用 `worldmind-0.4.0/cooperation-1`，单角色继续使用 `worldmind-0.2.1/river-1`；SDK 不改写导入记录的协议版本。
+
+## 双角色协作
+
+```python
+from worldmind.cooperation_domain import CooperationConfig
+from worldmind.sdk import WorldmindClient
+
+with WorldmindClient("http://127.0.0.1:8000") as client:
+    session = client.create_session(CooperationConfig(
+        scenario="cooperation", policy="Local", message_delay=2, order_deadline=30))
+    print(session.actor("doctor"))  # 只有医生自身认知，不含远端库存/消息队列
+    for _ in range(121):
+        view = session.step()
+        if view["status"] not in ("ready", "running"):
+            break
+    print(view["status"], view["orders"])
+    receipt = session.save_archive("双角色协作")
+    session.delete()
+```
+
+`session.actor()` 默认快递员，协作场景还支持 `doctor` 与 `merchant`；单角色场景仅接受 `courier`。`session.command("order_cancel", "supply-1")` 按条款撤销工作单；`session.command("interrupt", "doctor")` 中断医生当前动作。后者不退回制作已消耗的材料。订单与角色数据全集仅在调试 `view()` 返回。
+
+协作录制可以通过同一存档、导入、回放和 `resume()` 接口操作。续跑导出新增 `lineage.parent_recording_hash` 和 `lineage.cursor`，标注来源记录的规范 JSON 摘要及分叉位置；它是来源元数据，不是签名或对父记录真实性的证明。运行状态哈希不包含来源元数据。原单角色记录保持原格式。
+
+## 完成任务并保存回放
+
+在另一个 Python 进程执行：
+
+```python
+import json
+from pathlib import Path
+
+from worldmind.domain import Config
+from worldmind.sdk import WorldmindClient
+
+with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
+    session = client.create_session(Config(policy="Local", goal="medicine_home"))
+    session.step()
+    session.command("block", "bridge|home")
+    for _ in range(120):
+        view = session.step()
+        if view["status"] not in ("ready", "running"):
+            break
+    print(view["status"], view["tick"], view["metrics"]["budget_used"])
+
+    recording = session.export()
+    destination = Path("var/sdk-recording.json")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(recording, ensure_ascii=False), encoding="utf-8")
+
+    receipt = session.save_archive("SDK 断桥送药")
+    another = client.create_session()
+    restored = another.restore_archive(receipt)
+    assert restored["mode"] == "verified_replay"
+    another.seek(0)
+    another.seek(1)
+    resumed = another.resume()  # 从已验证的第 1 条输入续跑，原存档不变
+    assert resumed["mode"] == "live_offline" and not resumed["running"]
+    another.step()
+    another.delete()
+    session.delete()
+```
+
+`receipt` 是 `ArchiveReceipt`，包含 ID、访问凭证、名称、协议、创建/到期时间、字节数和输入步数。凭证不显示在 repr，但它仍是秘密：持有者可恢复或删除该存档。SDK 不自动保存回执；跨进程恢复须由调用者把完整回执保存在私有存储中。服务器不提供凭证找回。上例导出的普通回放 JSON 不包含凭证，适合手动导入与备份。
+
+删除活动会话不删除其存档。确定不再需要存档时，可调用 `client.delete_archive(receipt)`。存档默认 7 天到期；服务进程重启不影响尚在持久磁盘上的有效存档。恢复先进入只读校验回放；`seek(n)` 后调用 `resume()` 可从第 n 条输入续跑。原存档不会改变，导出只包含已选择的前缀和后续新输入。续跑保留原协议、证据时间、消耗预算、商人状态和制药进度，不会重新消费材料；恢复后仍暂停，需显式 `step()` 或 `control("run")`。已完成、取消、预算耗尽等终态不会被续跑解除；修改目标可开启新的任务尝试，但不补充预算。`control("reset")` 开始当前版本的新模拟。
+
+## 接口
+
+| 对象 / 方法 | 行为 |
+|---|---|
+| `WorldmindClient(base_url, timeout=10)` | 建立客户端；服务 URL 不可含用户名、密码、查询或 fragment |
+| `client.health()` | 读取应用版本、录制版本和模型开关 |
+| `client.create_session(config=None)` | 建立新的内存会话，接受 `Config`、`CooperationConfig` 或配置字典；省略配置为单角色场景 |
+| `client.attach_session(id, token)` | 绑定已有凭证；不保证会话仍然存在 |
+| `session.view()` / `session.actor(actor_id="courier")` | 调试全景 / 指定角色的受限投影；规划应使用后者 |
+| `session.command(kind, target=None, ...)` | 提交一步命令，例如 `block`、`remove`、`goal`、`cancel` |
+| `session.step()` | 提交一次单步，不自动循环 |
+| `session.control(operation)` | `run`、`pause` 或 `reset` |
+| `session.export()` | 返回完整回放字典；不写文件 |
+| `session.import_recording(recording)` | 完整校验成功后进入只读回放 |
+| `session.seek(until)` | 重新校验到指定输入位置，0 表示初态 |
+| `session.resume(command_id=None, expected_revision=None)` | 将已验证游标转为暂停的可执行分支，支持显式幂等重试 |
+| `session.save_archive(name)` | 验证并持久保存，返回私密回执 |
+| `session.restore_archive(receipt)` | 使用独立存档凭证恢复只读回放 |
+| `client.delete_archive(receipt)` | 删除对应服务端存档 |
+| `session.delete()` | 删除活动会话，不删除存档 |
+
+句柄使用能力凭证，不是账号。服务最多保留 16 个活动会话、每分钟最多创建 30 个，1 小时不活动到期。完成独立脚本后应删除不用的会话。客户端 context manager 只关闭自己的 HTTP 客户端，不自动删除会话或存档。
+
+## 运行与存档维护
+
+同一 FastAPI 进程提供 API 和构建后的页面；[健康检查](http://127.0.0.1:8000/api/health) 返回应用与录制协议版本。使用单进程启动，当前不支持多进程共享活动会话和模型并发控制。
+
+浏览器切换策略、重置或刷新会建立新的模拟，活动会话不跨服务重启保存。显式存档默认位于 `var/replay-archives.sqlite3`，保存 7 天，最多 64 份、合计 64 MiB 有效载荷，每份最多 2 MB；`WORLDMIND_ARCHIVES` 可指定持久磁盘路径。
+
+浏览器将存档凭证保存在当前站点的 `localStorage`。清除站点数据后无法自动找回凭证；跨设备可导出普通回放 JSON，再手动导入。服务重启后的存档恢复需要有效的数据库文件和凭证同时保留。
+
+升级时先显式保存需要保留的进度，停止服务并备份 `var/` 中的数据库，再更新源码、重新安装锁定依赖和 editable 项目、构建前端。安装命令见 [README](../README.md#快速启动)。`var/` 是运行数据，不是构建缓存；存档与模型额度账本是独立文件，均应保留。模型配置与账本初始化见 [模型指南](PROVIDERS.md#配置与开启)。
+
+## 冲突与显式重试
+
+`command()` / `resume()` 未提供 `expected_revision` 时，会先读取当前 revision，再提交一次。并发操作仍可能发生在这两步之间；HTTP 409 通过 `SDKError` 返回，SDK 不会自动用新 revision 重试。
+
+当网络异常导致一次写入结果不确定时，只有保留原请求的 `command_id` 和 `expected_revision` 才能显式重试，利用服务端幂等回执：
+
+```python
+from uuid import uuid4
+from worldmind.sdk import SDKError
+
+revision = session.view()["revision"]
+command_id = uuid4().hex
+try:
+    result = session.command("step", command_id=command_id, expected_revision=revision)
+except SDKError as error:
+    print(error.status, error.detail)  # 不打印凭证或请求头
+    # 由调用者判断是否重试。若重试，原样保留两个参数：
+    # result = session.command("step", command_id=command_id,
+    #                          expected_revision=revision)
+```
+
+同 ID 同内容返回原回执；同 ID 异内容拒绝。409 可能表示 revision 冲突、只读回放或其他状态限制，不能一概当作网络失败。`resume()` 同样支持上述两个参数，但其 ID 不可与动作命令混用。控制、导入和存档操作没有命令幂等 ID，不能照搬上述重试方式。
+
+## 超时、错误与测试客户端
+
+`timeout` 必须为 `(0, 60]` 内的有限数值，默认 10 秒，采用 httpx 的连接/读写超时语义；不是整个远程任务的绝对执行期限。SDK 没有自动重试、重定向或模型调用入口。默认使用 httpx 的代理与 CA 环境配置，不替换注入凭据或关闭 TLS 校验。
+
+`SDKError.status` 为 HTTP 状态码；请求尚未获得响应时为 `None`。`detail` 是有界错误说明，服务端校验错误不回显输入，SDK 也不把原始网络异常附在错误文本中。网络中断不代表服务端一定没有执行操作。
+
+测试或嵌入场景可注入专用于该 IntentWeave 服务的 `httpx.Client` 或 FastAPI `TestClient`：
+
+```python
+from fastapi.testclient import TestClient
+from worldmind.api import create_app
+from worldmind.sdk import WorldmindClient
+
+app = create_app(ledger_path="var/test-ledger.sqlite3",
+                 archive_path="var/test-archives.sqlite3")
+with TestClient(app) as transport:
+    with WorldmindClient(client=transport) as client:
+        session = client.create_session()
+        assert session.step()["tick"] == 1
+        session.delete()
+```
+
+注入的客户端由调用者关闭。它必须连接预期的服务来源，不应共享含其他账号认证的客户端。真实服务默认关闭模型调用；本轮 SDK 测试不调用供应商 API。测试适配器的已知提示及本轮结果见 [0.4 发布说明](RELEASE_V04.md)。

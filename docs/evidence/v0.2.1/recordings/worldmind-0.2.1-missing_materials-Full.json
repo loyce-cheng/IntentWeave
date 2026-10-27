@@ -1,0 +1,53 @@
+{
+  "schema_version": "worldmind-0.2.1/river-1",
+  "config": {
+    "policy": "Full",
+    "goal": "medicine_home",
+    "decision_budget": 3000,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "361d2a298dedadd68b9e6677a1fc4671a1065091d374f724f9105fb2fe332bad",
+  "steps": [
+    {
+      "input": {
+        "kind": "remove",
+        "target": "garden"
+      },
+      "state_hash": "8be7a4d9bd5bd2b5e19d326736d97d6d11df5610027764190d0546c289b37859",
+      "event_hash": "6b2850b616411f3e9d13f5c0c30797bce72949f92f487c146347adb2e854d8fe"
+    },
+    {
+      "input": {
+        "kind": "remove",
+        "target": "warehouse"
+      },
+      "state_hash": "b4163360aa320a912fe7301704354425623cd813cd5cb3cb94e6d9b2b723e27e",
+      "event_hash": "80b7467ba952aa7c9ca0700502b37e8dab69e5e208f2dae6ee934ade52bc37ec"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "8c3d884b932919dfa4b5dee23cded6b3d91d32be8d6654dea2024448903d83e3",
+      "event_hash": "3400b7a782f11d1fc82eeaca36e846f4b2076cb43e214e50a3847b23ed735f52"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "0fbcafc1ddb23b9017c73b255d92f2438679c36be636ac64890afd783278d78f",
+      "event_hash": "27f2d71bde0c6135afc5d03679403c20e2e7fcec87fc1acf1f4fae31e5772f6c"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "8d81d24682ddf425e7ae196e657081702e6d8a6fbf8bbca43980e5077d16d1ef",
+      "event_hash": "a5c35c61030bcbb5c668e2e50fc94450dbc6cea75f1cd3669128a92508ed770b"
+    }
+  ],
+  "final_hash": "8d81d24682ddf425e7ae196e657081702e6d8a6fbf8bbca43980e5077d16d1ef"
+}

@@ -1,0 +1,100 @@
+{
+  "schema_version": "worldmind-0.2.1/river-1",
+  "config": {
+    "policy": "Local",
+    "goal": "medicine_home",
+    "decision_budget": 3000,
+    "total_budget": 30000,
+    "max_ticks": 40,
+    "evidence_ttl": 3,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "9914fa270c7640202a288df5696a3a36c4094530204a79c4fa041274ddd7bed1",
+  "steps": [
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "116da8c10fab26a8ef714b58ddd70517e3bf3267dcefb9d6d57de8335b19da74",
+      "event_hash": "f067f85f597fa99e56968a44c9386d3b59522b88b813c07bf43ffae9503c8c2d"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "ff391fb6c13bff9ddf50abe72a681fc3ec7c5129d81e64ec8b04f33f710dd831",
+      "event_hash": "2313727025172d9da2b520fd389b01b04afde49019d9a8dd1a09b554e1e43648"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "4f33f34266e2985de40e7f1d97606c5f8fa5cbbbb684ce5709fae0d6b68d6b7a",
+      "event_hash": "b09ca97e3b75c5280d09158a8d1af711972573f834b6b08c4d7c0d6d0b141e26"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "927711105d3da141ffb879c5fa22519cd2d91fb90ed34aca9cbd248cc5ecd675",
+      "event_hash": "36435b2e90add844e5eca62f6d9ee1d6aa90d441bb55079cf0ee9fd9ff94a880"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "75ae4feba3c27f445080855ed392485d9a7a4fa4bba6cdfb35e431fc7c9f518f",
+      "event_hash": "630263afad96581c9eb04b1863601bdaa4ae1c8c62f30cf08fe5e5d176e400e5"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "94aa0f573e7b2458742641388b0a14da62154ebce6c6d274ae7d05cd5fa76396",
+      "event_hash": "8491f2dbb22184a6f0d2b3a715258cfa3415aee6eb8821f79e0fa13c4d7e3041"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "a4840a52170064738d1cfe2e879dcdf61f4d3e668285467bea29085af99f2706",
+      "event_hash": "56a2261b7132c69255355cff194917df380d7409d407f7c157140a2d4d692394"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "1cb84484b383c202c91e17a033ec3b18c41b74aa35a25925d292d482ad23f3ad",
+      "event_hash": "87b8cbc38114c1bb136a06d1fbb8da856e82bb528b287a36998a69a14612515c"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "30b580a35e6f085009625db1e178b363e659b1be63dc4966f3b02bc91d3d5393",
+      "event_hash": "6d19ea0b81dea55c0d75df896754b2922ff537a8a7fd32e54fe99dee9d8ceda5"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "c7f5a342b88211cd493c765d44d1763883401a18518ed34acfbca4b476e9ff0d",
+      "event_hash": "7e294d073c751bf01f2aebd3bd89d706e107175b16dd0110064691157811e1e1"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "8b9f1404f6266f70c01d2bdefe21ab78506fc911d86fb56406a425e3a3e37feb",
+      "event_hash": "8791b7ca378a68377661ece1ba4f209cfa396eeeff51ef496242d1bdc8e1555f"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "1f15ded5c3618200d8cb051101ca58b6c82f83643b371107b34f0983328220ae",
+      "event_hash": "9a45bae915acac6466f6b97c7438e10ec02fac018f9b450cae3df74d5d0aa411"
+    }
+  ],
+  "final_hash": "1f15ded5c3618200d8cb051101ca58b6c82f83643b371107b34f0983328220ae"
+}

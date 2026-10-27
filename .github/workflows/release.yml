@@ -1,0 +1,20 @@
+name: Publish release
+on:
+  push:
+    tags: ['v0.5.0']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build
+      - run: python -m build
+      - name: Publish version and packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "IntentWeave · 意织 $GITHUB_REF_NAME" --notes-file docs/RELEASE_V05.md

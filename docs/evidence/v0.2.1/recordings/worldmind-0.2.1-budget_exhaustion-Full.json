@@ -1,0 +1,23 @@
+{
+  "schema_version": "worldmind-0.2.1/river-1",
+  "config": {
+    "policy": "Full",
+    "goal": "medicine_home",
+    "decision_budget": 1,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "32660401233ba2d4e05b5a95da40d464475c52a44e8ac63cf4798254ab7d28f9",
+  "steps": [
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "f38ae8c815417f2196eb31859dc52aa0208910b985b4b560cc4fea579155b83f",
+      "event_hash": "5767114e789aae4868ab10f11a8e433cbbd6c228165f3c30c2f28be896edac76"
+    }
+  ],
+  "final_hash": "f38ae8c815417f2196eb31859dc52aa0208910b985b4b560cc4fea579155b83f"
+}

@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-26",
+  "timezone": "Asia/Shanghai",
+  "baseline_commit": "97e8eeb177e509b8825a3502c37c914b1216e972",
+  "scope": "fixed local technical comparison; not RSS or a general performance guarantee",
+  "environment": {
+    "python": "3.12.14",
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "baseline": {
+    "replay": {
+      "recordings": 64,
+      "cpu_ms_samples": [
+        1159.426866,
+        1222.098102,
+        1368.261037,
+        1396.501839,
+        1268.356284
+      ],
+      "cpu_ms_median": 1268.356284
+    },
+    "receipt_memory": {
+      "receipts": 1000,
+      "retained_bytes": 17234524,
+      "peak_bytes": 17500388
+    }
+  },
+  "reviewed": {
+    "replay": {
+      "recordings": 64,
+      "cpu_ms_samples": [
+        515.071724,
+        458.163271,
+        476.898449,
+        463.099737,
+        515.4165
+      ],
+      "cpu_ms_median": 476.898449
+    },
+    "receipt_memory": {
+      "receipts": 1000,
+      "retained_bytes": 1638478,
+      "peak_bytes": 2668878
+    }
+  },
+  "validation": {
+    "pytest_passed": 392,
+    "pytest_warnings": 19,
+    "browser_passed": 11,
+    "historical_recording_files": 96,
+    "coverage": {
+      "covered_lines": 1685,
+      "num_statements": 1833,
+      "percent_covered": 91.92580469176214,
+      "percent_covered_display": "92",
+      "missing_lines": 148,
+      "excluded_lines": 0,
+      "percent_statements_covered": 91.92580469176214,
+      "percent_statements_covered_display": "92"
+    },
+    "typecheck": "passed",
+    "build": "passed",
+    "format": "passed",
+    "cli_run_replay_compare": "passed",
+    "oversize_cli_recording": "rejected"
+  }
+}

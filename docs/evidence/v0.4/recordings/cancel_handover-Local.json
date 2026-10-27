@@ -1,0 +1,79 @@
+{
+  "schema_version": "worldmind-0.4.0/cooperation-1",
+  "config": {
+    "scenario": "cooperation",
+    "policy": "Local",
+    "goal": "medicine_home",
+    "decision_budget": 3000,
+    "actor_budget": 15000,
+    "total_budget": 30000,
+    "max_ticks": 120,
+    "evidence_ttl": 40,
+    "order_deadline": 30,
+    "goal_deadline": 60,
+    "message_delay": 1,
+    "accept_order": true,
+    "merchant_takes_at": 0
+  },
+  "initial_hash": "d1fac8877e01c78c9cffb3c573bc399ae07ca1166e38275906ba64b77e4a6d33",
+  "steps": [
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "9cfb2be6dbae420133a90318a880e4740d6fc130d9e4a824b0a0ad534a3f04c1",
+      "event_hash": "ce887f4da2f97f1bcf3966d1353c5fd4abdba8de9febd8bd735bfd02d18a67dd"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "085604430c173d057c0b05c4e36994f8ad63cfb255a73e797abb65da9024ae0e",
+      "event_hash": "b45bd6126066facbb93047d03c5394dfd817944239151e5a9129986a8c8bcdca"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "9988b2e0934dcf5b70ee08fae6c84971aa28494962398590b498fc668f3f7039",
+      "event_hash": "5cba49a700c01d21900389a9b53e6ca505fdeadff228382528c46b5cd1139016"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "100f9c3dd903806c0cac710a7d58e7433964398cbf0a057667d45a704ad866b6",
+      "event_hash": "d88fe42fbcd67c49826227f5814755affb6412fdafb743f21d881dbf0b0aeb22"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "794c095935318184216a99d510839484c317bf8c83fb989f0a3d7663e150b0e2",
+      "event_hash": "d86603f5611549134696d009880e98e54d13f5338032d71bfa2ae0a36c39e4db"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "d5e0b48cee8a4b12ff879f0e5e4abc9f497bea701056bfb19a9696def1c4455c",
+      "event_hash": "1108a369dc92b1be04e3ab56631e8fe813cc1315ccf3846162f1b930c6e4a5fd"
+    },
+    {
+      "input": {
+        "kind": "order_cancel",
+        "target": "supply-1"
+      },
+      "state_hash": "bb74e7029f411279133cf982690ecd72e3959dd313f9c567aaf24501ed9659b9",
+      "event_hash": "cf9dbf58f94746ac98c500bcb86e369ab2b505a4520cbf69accbdaa7d0455646"
+    },
+    {
+      "input": {
+        "kind": "step"
+      },
+      "state_hash": "72ca23e52e37d72f5b3415d4131a5b54e7dd607d626e398d63a350025802494f",
+      "event_hash": "5fa26980c7146b332937ce1b4ba5da043f6ed88a625dd2fa959e4290b2294a9c"
+    }
+  ],
+  "final_hash": "72ca23e52e37d72f5b3415d4131a5b54e7dd607d626e398d63a350025802494f"
+}
