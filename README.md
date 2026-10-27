@@ -1,5 +1,13 @@
 # IntentWeave · 意织
 
+[![CI](https://github.com/loyce-cheng/IntentWeave/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/loyce-cheng/IntentWeave/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/loyce-cheng/IntentWeave)](https://github.com/loyce-cheng/IntentWeave/releases/latest)
+
+**Observable NPC planning, cooperative tasks, and verified replay.**
+Watch independent agents adapt when roads close, resources disappear, or commitments change. Runs locally without an API key.
+
+[下载最新版本](https://github.com/loyce-cheng/IntentWeave/releases/latest) · [三步体验](#先试这三步) · [SDK 与接口](docs/SDK.md)
+
 **看见 NPC 如何计划、协作，以及在意外之后继续。**
 
 意织是一个可观察、可干预、可回放的 NPC 规划实验台。医生等待药材，快递员选择路线；如果桥断了、材料被抢先取走，或者工作单被取消，角色会怎样继续？你可以亲手制造这些变化，查看每个角色知道什么、准备做什么，以及计划为什么改变。
@@ -26,7 +34,12 @@ flowchart LR
 
 ## 快速启动
 
-需要 Python 3.11+、Node.js 22.12+。在仓库根目录执行：
+需要 Python 3.11+、Node.js 22.12+。先获取项目，再按系统执行安装：
+
+```bash
+git clone https://github.com/loyce-cheng/IntentWeave.git
+cd IntentWeave
+```
 
 macOS / Linux：
 
@@ -95,6 +108,7 @@ npm run test:e2e
 
 | 入口 | 内容 |
 |---|---|
+| [0.5 发布说明](docs/RELEASE_V05.md) | 当前版本功能、使用范围与验证 |
 | [协作协议与发布说明](docs/RELEASE_V04.md) | 工作单、资源、调度、失败案例与验证 |
 | [单角色协议与共享会话机制](docs/IMPLEMENTATION.md) | 原场景语义、并发、存档和兼容边界 |
 | [可选模型接入](docs/PROVIDERS.md) | 单角色模型配置、额度与协议验证范围 |
