@@ -1,4 +1,4 @@
-"""Worldmind: deterministic planning, explicit evidence and verified recordings."""
+"""IntentWeave: observable NPC planning and cooperation (worldmind namespace)."""
 
 from .version import __version__
 

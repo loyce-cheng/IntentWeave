@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass, field, replace
 
 from .domain import Action, GOALS, PLACES, ROADS, complete, transition
-from .planning_core import (Boundary, Budget, Decision, Exhausted, Context as BaseContext,
+from .planning_core import (Budget, Decision, Exhausted, Context as BaseContext,
                             search, suffix_boundary, validate)
 
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..domain import Action, transition
-from ..planning_core import (Boundary, Budget, Context, Decision, Exhausted, search, validate,
+from ..planning_core import (Budget, Context, Decision, Exhausted, search, validate,
                              legacy_explore as explore, suffix_boundary)
 
 
@@ -47,7 +47,6 @@ def decide(ctx: Context, previous: list[Action], policy: str, budget: Budget) ->
                         budget.limit = original_limit
                     if patch is not None:
                         return Decision(patch + suffix, "patched", reason, r, len(suffix), [0, r])
-                result.outcome = "fallback_full"
         path = search(ctx.state, ctx.goal, budget)
         if path is not None:
             valid, index, reason = validate(ctx, path, budget)

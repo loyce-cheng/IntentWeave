@@ -1,13 +1,12 @@
-# Python SDK（0.4.0）
+# IntentWeave Python SDK（0.4.0）
 
-`worldmind.sdk` 是本地 Worldmind HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装包并启动 FastAPI；仅使用 SDK 无需构建前端，也无需额外依赖。
+`worldmind.sdk` 是本地 IntentWeave HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装依赖和项目；仅使用 SDK 无需构建前端，也无需额外依赖。保留 `worldmind` 导入路径和 `WorldmindClient` 以兼容已有代码。
 
 ```bash
-.venv/bin/python -m pip install --no-deps -e .
-.venv/bin/python -m worldmind.cli serve
+.venv/bin/intentweave serve
 ```
 
-Windows 将 Python 路径替换为 `.\.venv\Scripts\python.exe`。升级源码后重新执行 editable 安装，以刷新包版本元数据。协作场景使用新的 0.4.0 协议，单角色继续使用 0.2.1 协议；SDK 不改写导入记录的协议版本。
+Windows 使用 `.\.venv\Scripts\intentweave.exe serve`。协作场景使用 `worldmind-0.4.0/cooperation-1`，单角色继续使用 `worldmind-0.2.1/river-1`；SDK 不改写导入记录的协议版本。
 
 ## 双角色协作
 
@@ -28,7 +27,7 @@ with WorldmindClient("http://127.0.0.1:8000") as client:
     session.delete()
 ```
 
-`session.actor()` 默认快递员，也支持 `doctor` 与 `merchant`。`session.command("order_cancel", "supply-1")` 按条款撤销工作单；`session.command("interrupt", "doctor")` 中断医生当前动作。后者不退回制作已消耗的材料。订单与角色数据全集仅在调试 `view()` 返回。
+`session.actor()` 默认快递员，协作场景还支持 `doctor` 与 `merchant`；单角色场景仅接受 `courier`。`session.command("order_cancel", "supply-1")` 按条款撤销工作单；`session.command("interrupt", "doctor")` 中断医生当前动作。后者不退回制作已消耗的材料。订单与角色数据全集仅在调试 `view()` 返回。
 
 协作录制可以通过同一存档、导入、回放和 `resume()` 接口操作。续跑导出新增 `lineage.parent_recording_hash` 和 `lineage.cursor`，标注来源记录的规范 JSON 摘要及分叉位置；它是来源元数据，不是签名或对父记录真实性的证明。运行状态哈希不包含来源元数据。原单角色记录保持原格式。
 
@@ -81,9 +80,9 @@ with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
 |---|---|
 | `WorldmindClient(base_url, timeout=10)` | 建立客户端；服务 URL 不可含用户名、密码、查询或 fragment |
 | `client.health()` | 读取应用版本、录制版本和模型开关 |
-| `client.create_session(config=None)` | 建立新的内存会话，接受 `Config` 或配置字典 |
+| `client.create_session(config=None)` | 建立新的内存会话，接受 `Config`、`CooperationConfig` 或配置字典；省略配置为单角色场景 |
 | `client.attach_session(id, token)` | 绑定已有凭证；不保证会话仍然存在 |
-| `session.view()` / `session.actor()` | 调试全景 / 角色受限投影；规划应使用后者 |
+| `session.view()` / `session.actor(actor_id="courier")` | 调试全景 / 指定角色的受限投影；规划应使用后者 |
 | `session.command(kind, target=None, ...)` | 提交一步命令，例如 `block`、`remove`、`goal`、`cancel` |
 | `session.step()` | 提交一次单步，不自动循环 |
 | `session.control(operation)` | `run`、`pause` 或 `reset` |
@@ -97,6 +96,16 @@ with WorldmindClient("http://127.0.0.1:8000", timeout=10) as client:
 | `session.delete()` | 删除活动会话，不删除存档 |
 
 句柄使用能力凭证，不是账号。服务最多保留 16 个活动会话、每分钟最多创建 30 个，1 小时不活动到期。完成独立脚本后应删除不用的会话。客户端 context manager 只关闭自己的 HTTP 客户端，不自动删除会话或存档。
+
+## 运行与存档维护
+
+同一 FastAPI 进程提供 API 和构建后的页面；[健康检查](http://127.0.0.1:8000/api/health) 返回应用与录制协议版本。使用单进程启动，当前不支持多进程共享活动会话和模型并发控制。
+
+浏览器切换策略、重置或刷新会建立新的模拟，活动会话不跨服务重启保存。显式存档默认位于 `var/replay-archives.sqlite3`，保存 7 天，最多 64 份、合计 64 MiB 有效载荷，每份最多 2 MB；`WORLDMIND_ARCHIVES` 可指定持久磁盘路径。
+
+浏览器将存档凭证保存在当前站点的 `localStorage`。清除站点数据后无法自动找回凭证；跨设备可导出普通回放 JSON，再手动导入。服务重启后的存档恢复需要有效的数据库文件和凭证同时保留。
+
+升级时先显式保存需要保留的进度，停止服务并备份 `var/` 中的数据库，再更新源码、重新安装锁定依赖和 editable 项目、构建前端。安装命令见 [README](../README.md#快速启动)。`var/` 是运行数据，不是构建缓存；存档与模型额度账本是独立文件，均应保留。模型配置与账本初始化见 [模型指南](PROVIDERS.md#配置与开启)。
 
 ## 冲突与显式重试
 
@@ -127,7 +136,7 @@ except SDKError as error:
 
 `SDKError.status` 为 HTTP 状态码；请求尚未获得响应时为 `None`。`detail` 是有界错误说明，服务端校验错误不回显输入，SDK 也不把原始网络异常附在错误文本中。网络中断不代表服务端一定没有执行操作。
 
-测试或嵌入场景可注入专用于该 Worldmind 服务的 `httpx.Client` 或 FastAPI `TestClient`：
+测试或嵌入场景可注入专用于该 IntentWeave 服务的 `httpx.Client` 或 FastAPI `TestClient`：
 
 ```python
 from fastapi.testclient import TestClient

@@ -8,13 +8,14 @@ from typing import Literal
 
 from pydantic import Field
 
-from .domain import GOALS, INITIAL_STOCK, PLACES, ROADS, StrictModel, digest, road
+from .domain import GOALS, INITIAL_STOCK, PLACES, ROADS, StrictModel, digest
 from .planning_core import Budget
 from .cooperation_domain import (ACTORS, PROTOCOL, TERMINAL_ORDERS, Actor, Goal, KnownState,
                                  CooperationAction as Action, CooperationCommand as Command,
                                  CooperationConfig, complete, transition)
 from .cooperation_planner import Context, decide
 from .orders import WorkOrder
+from .replay import verify_replay
 
 
 class CooperationEngine:
@@ -519,17 +520,4 @@ def replay(data, until=None):
     rec = CooperationRecording.model_validate(data)
     engine = CooperationEngine(rec.config)
     engine.lineage = rec.lineage.model_dump() if rec.lineage else None
-    if rec.initial_hash != engine.state_hash():
-        raise ValueError("initial hash mismatch")
-    count = len(rec.steps) if until is None else until
-    if type(count) is not int or not 0 <= count <= len(rec.steps):
-        raise ValueError("invalid replay cursor")
-    for i, step in enumerate(rec.steps[:count]):
-        engine.advance(step.input)
-        actual = engine.trace[-1]
-        if actual["state_hash"] != step.state_hash or actual["event_hash"] != step.event_hash:
-            raise ValueError(f"replay divergence at step {i + 1}")
-    if count == len(rec.steps) and rec.final_hash != engine.state_hash():
-        raise ValueError("final hash mismatch")
-    return engine, {"verified": count, "total": len(rec.steps), "complete": count == len(rec.steps),
-                    "mode": "verified_replay"}
+    return verify_replay(engine, rec, until)

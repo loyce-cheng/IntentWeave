@@ -1,4 +1,27 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+
+let sessions: Promise<{ id: string; token: string }>[];
+test.beforeEach(async ({ page }) => {
+  sessions = [];
+  page.on("response", (response) => {
+    if (
+      response.url().endsWith("/api/sessions") &&
+      response.request().method() === "POST" &&
+      response.status() === 201
+    )
+      sessions.push(response.json());
+  });
+});
+test.afterEach(async ({ request }) => {
+  // Reloads leave an active session behind; do not consume the service's cap.
+  for (const { id, token } of await Promise.all(sessions)) {
+    const response = await request.delete(`/api/sessions/${id}`, {
+      headers: { "X-Session-Token": token },
+    });
+    expect([200, 404]).toContain(response.status());
+  }
+});
 
 test("cooperation shows separate knowledge, completes delivery and restores an active action", async ({
   page,
@@ -68,5 +91,72 @@ test("cancelling a pending handover releases resources without crediting the doc
   await expect(page.locator("#metrics")).toContainText("当前认知下未找到计划");
   await page.locator("#actor-select").selectOption("doctor");
   await expect(page.locator("#metrics")).toContainText("0 / 0");
+  await expect(page.locator("#error")).toBeHidden();
+});
+
+test("invalid scene settings preserve the running session and restored controls match the recording", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("#metrics")).toContainText("准备就绪");
+  await page.locator("#scenario").selectOption("cooperation");
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  await page.getByText("新协作场景配置", { exact: true }).click();
+  await page.locator("#order-deadline").fill("0");
+  await page.locator("#apply-cooperation").click();
+  await expect(page.locator("#error")).toContainText("原模拟仍可继续");
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 2");
+
+  await page.locator("#order-deadline").fill("45");
+  await page.locator("#message-delay").fill("3");
+  await page.locator("#merchant-tick").fill("8");
+  await page.locator("#goal").selectOption("medicine_clinic");
+  await page.locator("#policy").selectOption("Full");
+  await expect(page.locator("#metrics")).toContainText("TICK 0 · Full");
+  await expect(page.locator("#error")).toBeHidden();
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 1");
+  await page.locator("#archive-name").fill("协作配置恢复");
+  await page.locator("#archive-save").click();
+  await expect(page.locator("#archive-status")).toContainText("已保存");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#export").click();
+  const download = await downloadPromise;
+  const contents = await readFile((await download.path())!, "utf8");
+
+  await page.locator("#policy").selectOption("Local");
+  await expect(page.locator("#metrics")).toContainText("TICK 0 · Local");
+  await page.locator("#goal").selectOption("herb_clinic");
+  await page.locator("#order-deadline").fill("40");
+  await page.locator("#message-delay").fill("2");
+  await page.locator("#merchant-tick").fill("0");
+  await page.getByRole("button", { name: "恢复回放", exact: true }).click();
+  await expect(page.locator("#policy")).toHaveValue("Full");
+  await expect(page.locator("#goal")).toHaveValue("medicine_clinic");
+  await expect(page.locator("#order-deadline")).toHaveValue("45");
+  await expect(page.locator("#message-delay")).toHaveValue("3");
+  await expect(page.locator("#merchant-tick")).toHaveValue("8");
+
+  await page.locator("#scenario").selectOption("river");
+  await expect(page.locator("#cooperation-panel")).toBeHidden();
+  await page.locator("#import").setInputFiles({
+    name: "configured-cooperation.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(contents),
+  });
+  await expect(page.locator("#scenario")).toHaveValue("cooperation");
+  await expect(page.locator("#policy")).toHaveValue("Full");
+  await expect(page.locator("#goal")).toHaveValue("medicine_clinic");
+  await expect(page.locator("#order-deadline")).toHaveValue("45");
+  await expect(page.locator("#message-delay")).toHaveValue("3");
+  await expect(page.locator("#merchant-tick")).toHaveValue("8");
+  await page.locator("#replay-resume").click();
+  await page.locator("#goal").selectOption("herb_clinic");
+  await page.locator("#step").click();
+  await expect(page.locator("#metrics")).toContainText("TICK 2");
+  await expect(page.locator("#goal")).toHaveValue("herb_clinic");
   await expect(page.locator("#error")).toBeHidden();
 });
