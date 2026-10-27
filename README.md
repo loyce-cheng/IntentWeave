@@ -1,5 +1,7 @@
 # IntentWeave · 意织
 
+[简体中文](README.md) | [English](README.en.md)
+
 [![CI](https://github.com/loyce-cheng/IntentWeave/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/loyce-cheng/IntentWeave/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/loyce-cheng/IntentWeave)](https://github.com/loyce-cheng/IntentWeave/releases/latest)
 
