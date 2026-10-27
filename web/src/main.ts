@@ -636,6 +636,8 @@ function renderControls() {
     view.model.status !== "pending";
   $<HTMLButtonElement>("replay-start").disabled ||= view.replay?.verified === 0;
   $<HTMLButtonElement>("replay-next").disabled ||= !!view.replay?.complete;
+  for (const id of ["goal", "order-deadline", "message-delay", "merchant-tick"])
+    $<HTMLInputElement | HTMLSelectElement>(id).disabled = busy;
   $<HTMLSelectElement>("policy").disabled = busy;
   $<HTMLSelectElement>("scenario").disabled = busy;
   $<HTMLButtonElement>("apply-cooperation").disabled = busy;
