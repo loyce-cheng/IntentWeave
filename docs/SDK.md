@@ -1,4 +1,4 @@
-# IntentWeave Python SDK（0.4.0）
+# IntentWeave Python SDK（0.5.0）
 
 `worldmind.sdk` 是本地 IntentWeave HTTP 服务的同步客户端，不负责启动服务或调用模型。先按 [README](../README.md) 安装依赖和项目；仅使用 SDK 无需构建前端，也无需额外依赖。保留 `worldmind` 导入路径和 `WorldmindClient` 以兼容已有代码。
 

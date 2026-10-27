@@ -1,6 +1,6 @@
 """Application releases and deterministic recording protocols are explicit contracts."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 # Application releases can change packaging, APIs and UI without changing the
 # deterministic simulation. Keep the protocol until its execution semantics change.
 RECORDING_VERSION = "worldmind-0.2.1/river-1"

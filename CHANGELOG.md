@@ -1,6 +1,6 @@
 # 版本记录
 
-## 未发布 — IntentWeave · 意织（2026-10-27）
+## 0.5.0 — IntentWeave · 意织（2026-10-28）
 
 - 项目更名为 IntentWeave · 意织，统一页面、API 文档与项目介绍；新增推荐命令 `intentweave`。原 `worldmind` 包、SDK、CLI、配置及录制标识继续兼容。
 - 两套协议共用回放校验，CLI 与 Full/Local 对照共用场景调度；删除未使用导入和无效赋值，保留有不同历史语义的规划器。

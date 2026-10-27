@@ -26,7 +26,7 @@ def test_release_metadata_and_api_agree_without_relabelling_recordings(tmp_path)
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     package = json.loads((ROOT / "web/package.json").read_text(encoding="utf-8"))
     lock = json.loads((ROOT / "web/package-lock.json").read_text(encoding="utf-8"))
-    assert __version__ == project["project"]["version"] == package["version"] == "0.4.0"
+    assert __version__ == project["project"]["version"] == package["version"] == "0.5.0"
     assert lock["version"] == lock["packages"][""]["version"] == __version__
     # A release label must not change deterministic simulation semantics.
     assert VERSION == "worldmind-0.2.1/river-1"
