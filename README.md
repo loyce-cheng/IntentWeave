@@ -87,7 +87,7 @@ npm run test:e2e
 
 `build` 包含 TypeScript 检查；Playwright 使用真实后端与生产构建。已有 Chromium 可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`；Windows 使用对应的 Python 路径。[CI](.github/workflows/ci.yml) 覆盖 Windows/Linux 后端和 Linux 浏览器，当前结果见 PR Checks。
 
-协作固定案例用 `.venv/bin/python scripts/benchmark_v04.py` 复现，结果写入 `var/benchmarks/v0.4`。历史录制保留在 `docs/evidence/`，用于协议兼容回归；不要用新结果覆盖。0.4 初版的验证结果与适用范围见 [发布说明](docs/RELEASE_V04.md)。
+协作固定案例用 `.venv/bin/python scripts/benchmark_v04.py` 复现，结果写入 `var/benchmarks/v0.4`。历史录制保留在 `docs/evidence/`，用于协议兼容回归；不要用新结果覆盖。当前发布内容见 [0.5 发布说明](docs/RELEASE_V05.md)，协作协议和初版验证见 [0.4 说明](docs/RELEASE_V04.md)。
 
 `src/worldmind/` 是运行时与 SDK，`web/` 是交互界面，`tests/` 和 `web/e2e/` 是回归测试。前端开发可运行 `npm --prefix web run dev`，通过 Vite 代理访问已启动的后端；生产页面在修改后需要重新构建。
 
