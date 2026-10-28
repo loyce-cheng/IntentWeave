@@ -145,7 +145,10 @@ test("mobile layout, no API credentials and model calls disabled", async ({
 test("archive survives reload, verifies replay and resumes a branch without changing the source", async ({
   page,
 }) => {
-  await expect(page.locator("#app-version")).toHaveText("v0.5.0");
+  const { version } = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  await expect(page.locator("#app-version")).toHaveText(`v${version}`);
   await page.locator("#step").click();
   await expect(page.locator("#metrics")).toContainText("TICK 1");
   await page.locator("#step").click();
